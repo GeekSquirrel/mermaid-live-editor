@@ -97,7 +97,7 @@
     <a
       href={resolve('/projects', {})}
       class="text-sm font-medium transition-colors hover:text-accent flex items-center gap-1">
-      我的项目
+      Projects
     </a>
     <DropdownNavMenu icon={GithubIcon} links={githubLinks} />
     <Separator orientation="vertical" />

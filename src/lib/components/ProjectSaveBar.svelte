@@ -20,7 +20,7 @@
       type="text"
       bind:value={projectState.title}
       oninput={handleTitleChange}
-      placeholder="未命名项目"
+      placeholder="Untitled Project"
       class="h-8 w-36 sm:w-48 rounded-md border border-input bg-background/50 px-2.5 py-1 text-xs sm:text-sm font-medium transition-colors placeholder:text-muted-foreground focus-visible:bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring hover:bg-background/80" />
     <EditIcon class="pointer-events-none absolute right-2 size-3.5 text-muted-foreground/60" />
   </div>
@@ -29,23 +29,23 @@
     {#if projectState.saveStatus === 'saving'}
       <span class="inline-flex items-center gap-1 text-amber-500 font-medium bg-amber-500/10 px-2 py-0.5 rounded">
         <LoadingIcon class="size-3.5 animate-spin" />
-        保存中...
+        Saving...
       </span>
     {:else if projectState.saveStatus === 'saved'}
       <span class="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-500/10 px-2 py-0.5 rounded">
         <CheckIcon class="size-3.5" />
-        已保存
+        Saved
       </span>
     {:else if projectState.saveStatus === 'error'}
       <span
         class="inline-flex items-center gap-1 text-destructive font-medium bg-destructive/10 px-2 py-0.5 rounded cursor-pointer"
-        title={projectState.errorMessage || '保存失败，点击重试'}
+        title={projectState.errorMessage || 'Save failed, click to retry'}
         onclick={handleRetry}
         role="button"
         tabindex="0"
         onkeydown={(e) => e.key === 'Enter' && handleRetry()}>
         <ErrorIcon class="size-3.5" />
-        保存失败 (点击重试)
+        Save failed (Click to retry)
       </span>
     {/if}
   </div>

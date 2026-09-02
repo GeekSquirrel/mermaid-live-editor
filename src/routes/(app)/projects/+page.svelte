@@ -21,7 +21,7 @@
       projects = await api.getProjects();
     } catch (err) {
       console.error('Failed to load projects:', err);
-      error = err instanceof Error ? err.message : '无法连接到后端服务器';
+      error = err instanceof Error ? err.message : 'Unable to connect to backend server';
     } finally {
       loading = false;
     }
@@ -32,14 +32,14 @@
   });
 
   const handleDelete = async (project: Project) => {
-    if (!confirm(`确定要删除项目 "${project.title}" 吗？此操作无法撤销。`)) {
+    if (!confirm(`Are you sure you want to delete "${project.title || 'Untitled Project'}"? This action cannot be undone.`)) {
       return;
     }
     try {
       await api.deleteProject(project.id);
       projects = projects.filter((p) => p.id !== project.id);
     } catch (err) {
-      alert(`删除失败: ${err instanceof Error ? err.message : '未知错误'}`);
+      alert(`Failed to delete: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
@@ -53,11 +53,11 @@
   const formatDate = (ts: number) => {
     if (!ts) return '';
     return new Date(ts).toLocaleString(undefined, {
-      year: 'numeric',
-      month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
     });
   };
 </script>
@@ -68,16 +68,16 @@
       href="/edit"
       class="inline-flex items-center gap-1 text-sm font-medium hover:text-accent">
       <AddIcon class="size-4" />
-      新建项目
+      New Project
     </a>
   </Navbar>
 
   <main class="flex-1 overflow-y-auto p-4 sm:p-8 max-w-7xl w-full mx-auto">
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
       <div>
-        <h1 class="text-2xl font-bold tracking-tight">我的项目</h1>
+        <h1 class="text-2xl font-bold tracking-tight">My Projects</h1>
         <p class="text-sm text-muted-foreground mt-1">
-          管理您保存在云端的 Mermaid 流程图与图表项目
+          Manage your Mermaid diagrams and chart projects saved in cloud storage
         </p>
       </div>
 
@@ -86,18 +86,18 @@
           <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="搜索项目标题..."
+            placeholder="Search projects..."
             bind:value={searchQuery}
             class="w-full rounded-md border border-input bg-background pl-9 pr-3 py-1.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         </div>
 
-        <Button variant="outline" size="sm" onclick={loadProjects} title="刷新列表">
+        <Button variant="outline" size="sm" onclick={loadProjects} title="Refresh list">
           <RefreshIcon class="size-4" />
         </Button>
 
         <Button variant="accent" size="sm" href="/edit" class="gap-1 whitespace-nowrap">
           <AddIcon class="size-4" />
-          新建项目
+          New Project
         </Button>
       </div>
     </div>
@@ -106,30 +106,30 @@
       <div class="flex h-64 items-center justify-center">
         <div class="flex flex-col items-center gap-2 text-muted-foreground">
           <div class="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          <span class="text-sm">加载项目列表中...</span>
+          <span class="text-sm">Loading projects...</span>
         </div>
       </div>
     {:else if error}
       <div class="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center">
         <p class="text-sm font-medium text-destructive">{error}</p>
-        <p class="text-xs text-muted-foreground mt-1">请确认后端服务 (http://localhost:8080) 已正常启动</p>
+        <p class="text-xs text-muted-foreground mt-1">Please make sure the backend server (http://localhost:8080) is running</p>
         <Button variant="outline" size="sm" class="mt-4" onclick={loadProjects}>
-          重试
+          Retry
         </Button>
       </div>
     {:else if filteredProjects.length === 0}
       <div class="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border p-8 text-center">
         {#if searchQuery}
-          <p class="text-muted-foreground">没有找到匹配 "{searchQuery}" 的项目</p>
+          <p class="text-muted-foreground">No projects found matching "{searchQuery}"</p>
           <Button variant="ghost" size="sm" class="mt-2" onclick={() => (searchQuery = '')}>
-            清除搜索
+            Clear search
           </Button>
         {:else}
-          <p class="text-base font-medium">暂无项目，点击新建项目开始创作</p>
-          <p class="text-sm text-muted-foreground mt-1">创建的项目将自动同步并保存至云端 SQLite 数据库</p>
+          <p class="text-base font-medium">No projects yet. Click New Project to get started.</p>
+          <p class="text-sm text-muted-foreground mt-1">Created projects will be automatically synchronized to SQLite database</p>
           <Button variant="accent" size="sm" href="/edit" class="mt-4 gap-1">
             <AddIcon class="size-4" />
-            新建第一个项目
+            Create First Project
           </Button>
         {/if}
       </div>
@@ -140,15 +140,15 @@
             <div>
               <div class="flex items-start justify-between gap-2">
                 <h2 class="font-semibold text-card-foreground line-clamp-1 group-hover:text-primary">
-                  {project.title || '未命名项目'}
+                  {project.title || 'Untitled Project'}
                 </h2>
               </div>
               <p class="text-xs text-muted-foreground mt-1">
-                更新于 {formatDate(project.updated_at)}
+                Updated {formatDate(project.updated_at)}
               </p>
 
               <div class="mt-3 rounded bg-muted/50 p-2 font-mono text-xs text-muted-foreground line-clamp-3 overflow-hidden h-16">
-                {project.code || '（空代码）'}
+                {project.code || '(Empty diagram)'}
               </div>
             </div>
 
@@ -159,7 +159,7 @@
                 class="h-8 px-2 text-xs"
                 onclick={() => handleDelete(project)}>
                 <DeleteIcon class="size-3.5 mr-1" />
-                删除
+                Delete
               </Button>
               <Button
                 variant="default"
@@ -167,7 +167,7 @@
                 class="h-8 px-3 text-xs gap-1"
                 href={`/edit?projectId=${project.id}`}>
                 <OpenIcon class="size-3.5" />
-                打开编辑
+                Open Editor
               </Button>
             </div>
           </div>

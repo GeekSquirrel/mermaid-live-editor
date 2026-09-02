@@ -4,7 +4,7 @@ import { debounce } from 'lodash-es';
 
 export class ProjectState {
   id = $state<string | null>(null);
-  title = $state<string>('未命名项目');
+  title = $state<string>('Untitled Project');
   saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
   errorMessage = $state<string | null>(null);
 
@@ -23,7 +23,7 @@ export class ProjectState {
 
     if (!idParam) {
       this.id = null;
-      this.title = '未命名项目';
+      this.title = 'Untitled Project';
       this.saveStatus = 'idle';
       this.initialized = true;
       return;
@@ -34,12 +34,12 @@ export class ProjectState {
 
     try {
       const project = await api.getProject(idParam);
-      this.title = project.title || '未命名项目';
+      this.title = project.title || 'Untitled Project';
       updateCode(project.code, { updateDiagram: true });
       this.saveStatus = 'saved';
     } catch (err) {
       console.error('Failed to load project:', err);
-      this.errorMessage = err instanceof Error ? err.message : '加载项目失败';
+      this.errorMessage = err instanceof Error ? err.message : 'Failed to load project';
       this.saveStatus = 'error';
     } finally {
       this.initialized = true;
@@ -58,13 +58,13 @@ export class ProjectState {
     try {
       if (this.id) {
         await api.updateProject(this.id, {
-          title: this.title.trim() || '未命名项目',
+          title: this.title.trim() || 'Untitled Project',
           code: currentCode
         });
         this.saveStatus = 'saved';
       } else {
         const created = await api.createProject({
-          title: this.title.trim() || '未命名项目',
+          title: this.title.trim() || 'Untitled Project',
           code: currentCode
         });
         this.id = created.id;
@@ -77,7 +77,7 @@ export class ProjectState {
     } catch (err) {
       console.error('Failed to save project:', err);
       this.saveStatus = 'error';
-      this.errorMessage = err instanceof Error ? err.message : '保存至后端失败';
+      this.errorMessage = err instanceof Error ? err.message : 'Failed to save project to backend';
     }
   }
 
