@@ -17,6 +17,7 @@
   import MenuIcon from '~icons/material-symbols/menu-rounded';
   import CommunityIcon from '~icons/material-symbols/person-play-outline-rounded';
   import PlaygroundIcon from '~icons/material-symbols/shape-line-outline';
+  import FolderIcon from '~icons/material-symbols/folder-open-outline-rounded';
   import MermaidChartIcon from './MermaidChartIcon.svelte';
 
   interface MenuItem {
@@ -33,6 +34,7 @@
 
   const menuItems: MenuItem[] = $derived([
     { label: 'New', icon: AddIcon, href: urls.current.new, renderer: menuItem },
+    { label: 'My Projects', icon: FolderIcon, href: '/projects', renderer: menuItem },
     { label: 'Duplicate', icon: DuplicateIcon, href: window.location.href, renderer: menuItem },
     {
       href: urls.current.mermaidChart({ medium: 'main_menu' }).playground,

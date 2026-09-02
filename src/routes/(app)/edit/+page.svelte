@@ -23,7 +23,9 @@
   import type { EditorMode, Tab } from '$/types';
   import { shouldShowEditorChooser } from '$/util/migration/domainMigration';
   import { PanZoomState } from '$/util/panZoom';
-  import { validatedState, updateCodeStore, urls } from '$/util/state.svelte';
+  import ProjectSaveBar from '$/components/ProjectSaveBar.svelte';
+  import { projectState } from '$/util/projectState.svelte';
+  import { validatedState, updateCodeStore, urls, inputState } from '$/util/state.svelte';
   import { logEvent, logMermaidChartClick } from '$/util/stats';
   import { initHandler } from '$/util/util';
   import { onMount } from 'svelte';
@@ -57,11 +59,17 @@
   let showEditorChooser = $state(false);
 
   onMount(async () => {
+    await projectState.loadFromUrl();
     showEditorChooser = shouldShowEditorChooser();
     await initHandler();
     window.addEventListener('appinstalled', () => {
       logEvent('pwaInstalled', { isMobile });
     });
+  });
+
+  $effect(() => {
+    const _code = inputState.code;
+    projectState.notifyChange();
   });
 
   // Record the Timeline for the whole session, not just while the panel is open.
@@ -91,6 +99,7 @@
   {/snippet}
 
   <Navbar mobileToggle={isMobile ? mobileToggle : undefined}>
+    <ProjectSaveBar />
     <Toggle bind:pressed={isHistoryOpen} size="sm" title="History" aria-label="History">
       <HistoryIcon />
     </Toggle>
