@@ -1,5 +1,5 @@
-import type { HistoryEntry } from '$lib/types';
 import { api } from '$lib/services/api';
+import type { HistoryEntry } from '$lib/types';
 import { defaultState, replaceInputState } from '$lib/util/state.svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -12,6 +12,7 @@ import {
   removeEntry,
   renameEntry,
   restoreEntries,
+  setCurrentProjectId,
   setLoaderEntries,
   setMode,
   startAutoSave,
@@ -419,6 +420,47 @@ describe('backend synchronization for saved entries', () => {
     vi.mocked(api.clearHistoryEntries).mockClear();
     setMode('manual');
     clearActive();
-    expect(api.clearHistoryEntries).toHaveBeenCalledWith('manual');
+    expect(api.clearHistoryEntries).toHaveBeenCalledWith('manual', null);
+  });
+});
+
+describe('project-specific history isolation', () => {
+  beforeEach(() => {
+    setCurrentProjectId(null);
+    setMode('manual');
+    clearActive();
+    setMode('auto');
+    clearActive();
+    setMode('manual');
+  });
+
+  it('isolates saved entries per project', () => {
+    setCurrentProjectId('proj-A');
+    addManualEntry(codeState('graph TD\n A1'), 'A-First');
+
+    setCurrentProjectId('proj-B');
+    expect(historyState.entries).toHaveLength(0);
+    addManualEntry(codeState('graph TD\n B1'), 'B-First');
+    expect(historyState.entries).toHaveLength(1);
+    expect(historyState.entries[0].name).toBe('B-First');
+
+    setCurrentProjectId('proj-A');
+    expect(historyState.entries).toHaveLength(1);
+    expect(historyState.entries[0].name).toBe('A-First');
+  });
+
+  it('isolates timeline auto entries per project', () => {
+    setMode('auto');
+    setCurrentProjectId('proj-X');
+    addAutoEntry(codeState('graph TD\n X1'));
+    expect(historyState.entries).toHaveLength(1);
+
+    setCurrentProjectId('proj-Y');
+    expect(historyState.entries).toHaveLength(0);
+    addAutoEntry(codeState('graph TD\n Y1'));
+    expect(historyState.entries).toHaveLength(1);
+
+    setCurrentProjectId('proj-X');
+    expect(historyState.entries).toHaveLength(1);
   });
 });

@@ -7,6 +7,7 @@
   import {
     addManualEntry,
     loadSavedEntries,
+    setCurrentProjectId,
     startAutoSave
   } from '$/components/History/historyState.svelte';
   import { notify } from '$/util/notify';
@@ -63,6 +64,7 @@
 
   onMount(async () => {
     await projectState.loadFromUrl();
+    setCurrentProjectId(projectState.id);
     showEditorChooser = shouldShowEditorChooser();
     await initHandler();
     window.addEventListener('appinstalled', () => {
@@ -75,6 +77,10 @@
     projectState.notifyChange();
   });
 
+  $effect(() => {
+    setCurrentProjectId(projectState.id);
+  });
+
   // Record the Timeline for the whole session and load saved history from backend
   onMount(() => {
     void loadSavedEntries();
@@ -83,9 +89,11 @@
 
   const handleSaveDiagram = async () => {
     await projectState.save();
+    const currentId = projectState.id;
+    setCurrentProjectId(currentId);
     const currentState = $state.snapshot(inputState);
     const title = projectState.title?.trim();
-    const added = addManualEntry(currentState, title || undefined);
+    const added = addManualEntry(currentState, title || undefined, currentId);
     if (added) {
       notify('Diagram saved.');
     } else {

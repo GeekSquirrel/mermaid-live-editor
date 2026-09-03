@@ -9,8 +9,16 @@ import { v4 as uuidV4 } from 'uuid';
 const MAX_AUTO_HISTORY_LENGTH = 30;
 const AUTO_SAVE_INTERVAL = 60_000;
 
-const auto = persisted<HistoryEntry[]>('autoHistoryStore', []);
-let manual = $state<HistoryEntry[]>(readJSON<HistoryEntry[]>('manualHistoryStore', []));
+let currentProjectId = $state<string | null>(null);
+
+const getAutoKey = (projectId: string | null): string =>
+  projectId ? `autoHistoryStore:${projectId}` : 'autoHistoryStore';
+
+const getManualKey = (projectId: string | null): string =>
+  projectId ? `manualHistoryStore:${projectId}` : 'manualHistoryStore';
+
+let autoEntries = $state<HistoryEntry[]>(readJSON<HistoryEntry[]>(getAutoKey(null), []));
+let manual = $state<HistoryEntry[]>(readJSON<HistoryEntry[]>(getManualKey(null), []));
 const mode = persisted<HistoryType>('autoHistoryMode', 'manual');
 let loader = $state<HistoryEntry[]>([]);
 
@@ -23,7 +31,7 @@ export const historyState = {
   get entries(): HistoryEntry[] {
     switch (mode.value) {
       case 'auto':
-        return auto.value;
+        return autoEntries;
       case 'manual':
         return manual;
       default:
@@ -35,6 +43,9 @@ export const historyState = {
   },
   get mode(): HistoryType {
     return mode.value;
+  },
+  get projectId(): string | null {
+    return currentProjectId;
   }
 };
 
@@ -42,25 +53,45 @@ export const setMode = (next: HistoryType): void => {
   mode.value = next;
 };
 
+export const setCurrentProjectId = (id: string | null): void => {
+  if (currentProjectId === id) {
+    return;
+  }
+  currentProjectId = id;
+  autoEntries = readJSON<HistoryEntry[]>(getAutoKey(id), []);
+  manual = readJSON<HistoryEntry[]>(getManualKey(id), []);
+  void loadSavedEntries(id);
+};
+
 // Dedup key: only the fields that define the diagram, so volatile/view-only
 // fields (renderCount, pan/zoom, …) don't count as a change.
 export const stateKey = (state: State): string =>
   JSON.stringify({ code: state.code, mermaid: state.mermaid });
 
-const createEntry = (state: State, type: 'auto' | 'manual', customName?: string): HistoryEntry => ({
+const createEntry = (
+  state: State,
+  type: 'auto' | 'manual',
+  customName?: string,
+  projectId: string | null = currentProjectId
+): HistoryEntry => ({
   id: uuidV4(),
   name: (customName && customName.trim()) || generateSlug(2),
+  project_id: projectId,
   state,
   time: Date.now(),
   type
 });
 
-export const loadSavedEntries = async (): Promise<HistoryEntry[]> => {
+export const loadSavedEntries = async (
+  projectId: string | null = currentProjectId
+): Promise<HistoryEntry[]> => {
   try {
-    const entries = await api.getHistoryEntries('manual');
+    const entries = await api.getHistoryEntries('manual', projectId);
     if (Array.isArray(entries)) {
-      manual = entries;
-      writeJSON('manualHistoryStore', entries);
+      if (currentProjectId === projectId) {
+        manual = entries;
+      }
+      writeJSON(getManualKey(projectId), entries);
       return entries;
     }
   } catch (err) {
@@ -70,19 +101,26 @@ export const loadSavedEntries = async (): Promise<HistoryEntry[]> => {
 };
 
 // Returns true if added, false if it duplicated the most recent entry.
-export const addManualEntry = (state: State, customName?: string): boolean => {
+export const addManualEntry = (
+  state: State,
+  customName?: string,
+  projectId: string | null = currentProjectId
+): boolean => {
   if (manual.length > 0 && stateKey(manual[0].state) === stateKey(state)) {
     return false;
   }
-  const entry = createEntry(state, 'manual', customName);
-  manual = [entry, ...manual];
-  writeJSON('manualHistoryStore', manual);
+  const entry = createEntry(state, 'manual', customName, projectId);
+  if (currentProjectId === projectId) {
+    manual = [entry, ...manual];
+  }
+  writeJSON(getManualKey(projectId), manual);
   logEvent('history', { action: 'save', type: 'manual' });
 
   void api
     .createHistoryEntry({
       id: entry.id,
       name: entry.name || 'Untitled',
+      projectId,
       state: entry.state,
       time: entry.time,
       type: 'manual'
@@ -94,16 +132,27 @@ export const addManualEntry = (state: State, customName?: string): boolean => {
   return true;
 };
 
-export const addAutoEntry = (state: State): boolean => {
-  const entries = auto.value;
-  if (entries.length > 0 && stateKey(entries[0].state) === stateKey(state)) {
+export const addAutoEntry = (
+  state: State,
+  projectId: string | null = currentProjectId
+): boolean => {
+  const currentEntries =
+    projectId === currentProjectId
+      ? autoEntries
+      : readJSON<HistoryEntry[]>(getAutoKey(projectId), []);
+
+  if (currentEntries.length > 0 && stateKey(currentEntries[0].state) === stateKey(state)) {
     return false;
   }
   const trimmed =
-    entries.length >= MAX_AUTO_HISTORY_LENGTH
-      ? entries.slice(0, MAX_AUTO_HISTORY_LENGTH - 1)
-      : entries;
-  auto.value = [createEntry(state, 'auto'), ...trimmed];
+    currentEntries.length >= MAX_AUTO_HISTORY_LENGTH
+      ? currentEntries.slice(0, MAX_AUTO_HISTORY_LENGTH - 1)
+      : currentEntries;
+  const updated = [createEntry(state, 'auto', undefined, projectId), ...trimmed];
+  if (projectId === currentProjectId) {
+    autoEntries = updated;
+  }
+  writeJSON(getAutoKey(projectId), updated);
   logEvent('history', { action: 'save', type: 'auto' });
   return true;
 };
@@ -118,7 +167,7 @@ export const setLoaderEntries = (entries: Optional<HistoryEntry, 'id'>[]): void 
 export const removeEntry = (id: string): void => {
   if (mode.value === 'manual') {
     manual = manual.filter((entry) => entry.id !== id);
-    writeJSON('manualHistoryStore', manual);
+    writeJSON(getManualKey(currentProjectId), manual);
     logEvent('history', { action: 'clear', type: 'single' });
     void api.deleteHistoryEntry(id).catch((err) => {
       console.error('Failed to delete history entry from backend:', err);
@@ -126,7 +175,8 @@ export const removeEntry = (id: string): void => {
     return;
   }
   if (mode.value === 'auto') {
-    auto.value = auto.value.filter((entry) => entry.id !== id);
+    autoEntries = autoEntries.filter((entry) => entry.id !== id);
+    writeJSON(getAutoKey(currentProjectId), autoEntries);
     logEvent('history', { action: 'clear', type: 'single' });
   }
 };
@@ -138,7 +188,7 @@ export const renameEntry = (id: string, name: string): void => {
   }
   if (mode.value === 'manual') {
     manual = manual.map((entry) => (entry.id === id ? { ...entry, name: trimmed } : entry));
-    writeJSON('manualHistoryStore', manual);
+    writeJSON(getManualKey(currentProjectId), manual);
     logEvent('history', { action: 'rename' });
     void api.updateHistoryEntry(id, { name: trimmed }).catch((err) => {
       console.error('Failed to update history entry in backend:', err);
@@ -146,7 +196,10 @@ export const renameEntry = (id: string, name: string): void => {
     return;
   }
   if (mode.value === 'auto') {
-    auto.value = auto.value.map((entry) => (entry.id === id ? { ...entry, name: trimmed } : entry));
+    autoEntries = autoEntries.map((entry) =>
+      entry.id === id ? { ...entry, name: trimmed } : entry
+    );
+    writeJSON(getAutoKey(currentProjectId), autoEntries);
     logEvent('history', { action: 'rename' });
   }
 };
@@ -154,15 +207,16 @@ export const renameEntry = (id: string, name: string): void => {
 export const clearActive = (): void => {
   if (mode.value === 'manual') {
     manual = [];
-    writeJSON('manualHistoryStore', []);
+    writeJSON(getManualKey(currentProjectId), []);
     logEvent('history', { action: 'clear', type: 'all' });
-    void api.clearHistoryEntries('manual').catch((err) => {
+    void api.clearHistoryEntries('manual', currentProjectId).catch((err) => {
       console.error('Failed to clear history in backend:', err);
     });
     return;
   }
   if (mode.value === 'auto') {
-    auto.value = [];
+    autoEntries = [];
+    writeJSON(getAutoKey(currentProjectId), []);
     logEvent('history', { action: 'clear', type: 'all' });
   }
 };
@@ -183,28 +237,30 @@ export const restoreEntries = (data: HistoryEntry[]): RestoreResult => {
   const invalid = data.length - valid.length;
   let restored = 0;
 
-  // 1. Auto entries (localStorage)
+  // 1. Auto entries (localStorage for current project)
   const incomingAuto = valid.filter((entry) => entry.type === 'auto');
   if (incomingAuto.length > 0) {
-    const existingAutoIDs = auto.value.map(({ id }) => id);
+    const existingAutoIDs = autoEntries.map(({ id }) => id);
     const freshAuto = incomingAuto.filter(({ id }) => !existingAutoIDs.includes(id));
     restored += freshAuto.length;
-    auto.value = [...auto.value, ...freshAuto].sort((a, b) => b.time - a.time);
+    autoEntries = [...autoEntries, ...freshAuto].sort((a, b) => b.time - a.time);
+    writeJSON(getAutoKey(currentProjectId), autoEntries);
   }
 
-  // 2. Manual entries (SQLite sync)
+  // 2. Manual entries (SQLite sync for current project)
   const incomingManual = valid.filter((entry) => entry.type === 'manual');
   if (incomingManual.length > 0) {
     const existingManualIDs = manual.map(({ id }) => id);
     const freshManual = incomingManual.filter(({ id }) => !existingManualIDs.includes(id));
     restored += freshManual.length;
     manual = [...manual, ...freshManual].sort((a, b) => b.time - a.time);
-    writeJSON('manualHistoryStore', manual);
+    writeJSON(getManualKey(currentProjectId), manual);
     for (const entry of freshManual) {
       void api
         .createHistoryEntry({
           id: entry.id,
           name: entry.name || 'Untitled',
+          projectId: currentProjectId,
           state: entry.state,
           time: entry.time,
           type: 'manual'
@@ -224,9 +280,10 @@ const setIDs = (entries: HistoryEntry[]): HistoryEntry[] =>
 // One-time migration: re-reads localStorage so entries written by an older
 // version get ids, then persists and updates the reactive state.
 export const injectHistoryIDs = (): void => {
-  auto.value = setIDs(readJSON<HistoryEntry[]>('autoHistoryStore', []));
-  manual = setIDs(readJSON<HistoryEntry[]>('manualHistoryStore', []));
-  writeJSON('manualHistoryStore', manual);
+  autoEntries = setIDs(readJSON<HistoryEntry[]>(getAutoKey(currentProjectId), []));
+  writeJSON(getAutoKey(currentProjectId), autoEntries);
+  manual = setIDs(readJSON<HistoryEntry[]>(getManualKey(currentProjectId), []));
+  writeJSON(getManualKey(currentProjectId), manual);
 };
 
 let autoSaveTimer: ReturnType<typeof setInterval> | undefined;

@@ -21,6 +21,8 @@ export interface UpdateProjectDto {
 export interface CreateHistoryDto {
   id?: string;
   name: string;
+  projectId?: string | null;
+  project_id?: string | null;
   state: State | Record<string, unknown>;
   time?: number;
   type?: string;
@@ -105,10 +107,18 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  clearHistoryEntries: (type = 'manual'): Promise<{ cleared: boolean }> =>
-    request<{ cleared: boolean }>(`/history?type=${encodeURIComponent(type)}`, {
+  clearHistoryEntries: (
+    type = 'manual',
+    projectId?: string | null
+  ): Promise<{ cleared: boolean }> => {
+    let path = `/history?type=${encodeURIComponent(type)}`;
+    if (projectId !== undefined) {
+      path += `&projectId=${encodeURIComponent(projectId || 'default')}`;
+    }
+    return request<{ cleared: boolean }>(path, {
       method: 'DELETE'
-    }),
+    });
+  },
 
   createHistoryEntry: (data: CreateHistoryDto): Promise<HistoryEntry> =>
     request<HistoryEntry>('/history', {
@@ -132,8 +142,13 @@ export const api = {
       method: 'DELETE'
     }),
 
-  getHistoryEntries: (type = 'manual'): Promise<HistoryEntry[]> =>
-    request<HistoryEntry[]>(`/history?type=${encodeURIComponent(type)}`),
+  getHistoryEntries: (type = 'manual', projectId?: string | null): Promise<HistoryEntry[]> => {
+    let path = `/history?type=${encodeURIComponent(type)}`;
+    if (projectId !== undefined) {
+      path += `&projectId=${encodeURIComponent(projectId || 'default')}`;
+    }
+    return request<HistoryEntry[]>(path);
+  },
 
   getProject: (id: string): Promise<Project> => request<Project>(`/projects/${id}`),
 
