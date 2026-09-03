@@ -1,5 +1,5 @@
-import type { HistoryEntry, HistoryType, Optional, State } from '$lib/types';
 import { api } from '$lib/services/api';
+import type { HistoryEntry, HistoryType, Optional, State } from '$lib/types';
 import { persisted, readJSON, writeJSON } from '$lib/util/persist.svelte';
 import { inputState } from '$lib/util/state.svelte';
 import { logEvent } from '$lib/util/stats';

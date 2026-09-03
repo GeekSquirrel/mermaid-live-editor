@@ -1,7 +1,7 @@
 <script lang="ts">
   import EmbedView from '$/components/EmbedView.svelte';
   import MermaidChartIcon from '$/components/MermaidChartIcon.svelte';
-  import PanZoomToolbar from '$/components/PanZoomToolbar.svelte';
+  import CanvasToolbar from '$/components/CanvasToolbar.svelte';
   import { Button } from '$/components/ui/button';
   import { TID } from '$/constants';
   import {
@@ -84,7 +84,7 @@
 
       {#if settings.controls}
         <div class="absolute top-2 right-2" data-testid={TID.embedToolbar}>
-          <PanZoomToolbar {panZoomState} compact />
+          <CanvasToolbar {panZoomState} compact />
         </div>
         <Button
           data-testid={TID.embedModeToggle}

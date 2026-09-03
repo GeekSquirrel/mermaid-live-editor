@@ -14,7 +14,7 @@
   import { afterNavigate } from '$app/navigation';
   import EditorChooserModal from '$/components/migration/EditorChooserModal.svelte';
   import Navbar from '$/components/Navbar.svelte';
-  import PanZoomToolbar from '$/components/PanZoomToolbar.svelte';
+  import CanvasToolbar from '$/components/CanvasToolbar.svelte';
   import Preset from '$/components/Preset.svelte';
   import Share from '$/components/Share.svelte';
   import SyncRoughToolbar from '$/components/SyncRoughToolbar.svelte';
@@ -205,7 +205,7 @@
         <Resizable.Pane minSize={15} class="relative flex h-full flex-1 flex-col overflow-hidden">
           <View {panZoomState} shouldShowGrid={validatedState.current.grid} />
           <div class="absolute top-0 right-0">
-            <PanZoomToolbar
+            <CanvasToolbar
               {panZoomState}
               fullScreenHref={urls.current.view}
               onSave={() => void handleSaveDiagram()}

@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '$lib/services/api';
 import { inputState, updateCode } from '$lib/util/state.svelte';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AUTO_SAVE_DEBOUNCE_MS, ProjectState } from './projectState.svelte';
 
 vi.mock('$lib/services/api', () => ({
