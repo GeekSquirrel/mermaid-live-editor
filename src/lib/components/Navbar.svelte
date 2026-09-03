@@ -19,7 +19,6 @@
   interface Props {
     mobileToggle?: Snippet;
     children: Snippet;
-    hidePromotion?: boolean;
   }
 
   let { children, mobileToggle }: Props = $props();
