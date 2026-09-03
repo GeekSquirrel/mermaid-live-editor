@@ -3,11 +3,8 @@
   import Card from '$/components/Card/Card.svelte';
   import DiagramDocButton from '$/components/DiagramDocumentationButton.svelte';
   import Editor from '$/components/Editor.svelte';
-  import EnhancedEditsButton from '$/components/EnhancedEditsButton.svelte';
   import History from '$/components/History/History.svelte';
   import { startAutoSave } from '$/components/History/historyState.svelte';
-  import McWrapper from '$/components/McWrapper.svelte';
-  import MermaidChartIcon from '$/components/MermaidChartIcon.svelte';
   import EditorChooserModal from '$/components/migration/EditorChooserModal.svelte';
   import Navbar from '$/components/Navbar.svelte';
   import PanZoomToolbar from '$/components/PanZoomToolbar.svelte';
@@ -26,12 +23,13 @@
   import ProjectSaveBar from '$/components/ProjectSaveBar.svelte';
   import { projectState } from '$/util/projectState.svelte';
   import { validatedState, updateCodeStore, urls, inputState } from '$/util/state.svelte';
-  import { logEvent, logMermaidChartClick } from '$/util/stats';
+  import { logEvent } from '$/util/stats';
   import { initHandler } from '$/util/util';
   import { onMount } from 'svelte';
   import CodeIcon from '~icons/custom/code';
   import HistoryIcon from '~icons/material-symbols/history';
   import GearIcon from '~icons/material-symbols/settings-outline-rounded';
+  import SaveIcon from '~icons/material-symbols/save-outline-rounded';
 
   const panZoomState = new PanZoomState();
 
@@ -68,7 +66,7 @@
   });
 
   $effect(() => {
-    const _code = inputState.code;
+    void inputState.code;
     projectState.notifyChange();
   });
 
@@ -104,17 +102,15 @@
       <HistoryIcon />
     </Toggle>
     <Share />
-    <McWrapper>
-      <Button
-        variant="accent"
-        size="sm"
-        href={urls.current.mermaidChart({ medium: 'save_diagram' }).save}
-        target="_blank"
-        onclick={() => logMermaidChartClick('saveDiagram')}>
-        <MermaidChartIcon />
-        Save diagram
-      </Button>
-    </McWrapper>
+    <Button
+      variant="accent"
+      size="sm"
+      onclick={() => void projectState.save()}
+      disabled={projectState.saveStatus === 'saving'}
+      title="Save diagram">
+      <SaveIcon class="size-4" />
+      Save diagram
+    </Button>
   </Navbar>
 
   <div class="flex flex-1 flex-col overflow-hidden" bind:clientWidth={width}>
@@ -150,7 +146,6 @@
         <Resizable.Handle class="mr-1 hidden opacity-0 sm:block" />
         <Resizable.Pane minSize={15} class="relative flex h-full flex-1 flex-col overflow-hidden">
           <View {panZoomState} shouldShowGrid={validatedState.current.grid} />
-          <div class="absolute top-0 left-5 hidden md:block"><EnhancedEditsButton /></div>
           <div class="absolute top-0 right-0">
             <PanZoomToolbar {panZoomState} fullScreenHref={urls.current.view} />
           </div>

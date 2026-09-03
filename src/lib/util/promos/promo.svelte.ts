@@ -1,4 +1,3 @@
-import { env } from '$lib/util/env';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import type { Component, Snippet } from 'svelte';
@@ -43,26 +42,5 @@ export const dismissPromotion = (id?: string): void => {
 const hiddenPromotions = persisted<Record<string, number>>('hiddenPromotions', {});
 
 export const getActivePromotion = (): (Promotion & { id: string }) | undefined => {
-  if (!env.isEnabledMermaidChartLinks) {
-    return;
-  }
-
-  const hidePromotionsUntil = hiddenPromotions.value;
-  const now = dayjs();
-  const promotionWithID = Object.entries(promotions)
-    .filter(
-      ([id, p]) =>
-        dayjs(p.startDate).isBefore(now) &&
-        dayjs(p.endDate).isAfter(now) &&
-        (!hidePromotionsUntil[id] || dayjs(hidePromotionsUntil[id]).isBefore(now))
-    )
-    .sort(([, a], [, b]) => dayjs(b.endDate).diff(dayjs(a.endDate)))
-    .pop();
-
-  if (!promotionWithID) {
-    return;
-  }
-
-  const [id, promotion] = promotionWithID;
-  return { ...promotion, id };
+  return undefined;
 };
