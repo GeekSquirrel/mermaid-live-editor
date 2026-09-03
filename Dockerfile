@@ -1,4 +1,4 @@
-FROM docker.io/library/node:24.16.0-alpine3.22 AS mermaid-live-editor-dependencies
+FROM node:24-alpine AS mermaid-live-editor-dependencies
 
 RUN apk --no-cache add build-base git python3 && \
     rm -rf /var/cache/apk/*
@@ -33,7 +33,7 @@ FROM mermaid-live-editor-builder AS mermaid-dev
 
 ENTRYPOINT ["pnpm", "dev"]
 
-FROM nginx:1.28-alpine3.21 AS mermaid
+FROM nginx:alpine AS mermaid
 
 COPY ./nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=mermaid-live-editor-builder /app/docs /usr/share/nginx/html
