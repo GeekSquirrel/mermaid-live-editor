@@ -25,10 +25,32 @@ export interface ApiResponse<T = unknown> {
   };
 }
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+declare global {
+  interface Window {
+    APP_CONFIG?: {
+      apiBaseUrl?: string;
+    };
+  }
+}
+
+export function getApiBaseUrl(): string {
+  let url = '';
+  if (typeof window !== 'undefined' && window.APP_CONFIG?.apiBaseUrl !== undefined) {
+    url = window.APP_CONFIG.apiBaseUrl.trim();
+  }
+  if (!url) {
+    url = (import.meta.env.VITE_API_BASE_URL || '').trim();
+  }
+  if (!url) {
+    url = '/api';
+  }
+  return url.replace(/\/+$/, '');
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`, {
+  const baseUrl = getApiBaseUrl();
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const response = await fetch(`${baseUrl}${normalizedPath}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -51,25 +73,24 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  getProjects: (): Promise<Project[]> => request<Project[]>('/projects'),
-
-  getProject: (id: string): Promise<Project> => request<Project>(`/projects/${id}`),
-
   createProject: (data: CreateProjectDto): Promise<Project> =>
     request<Project>('/projects', {
       method: 'POST',
       body: JSON.stringify(data)
     }),
 
+  deleteProject: (id: string): Promise<{ deleted: boolean }> =>
+    request<{ deleted: boolean }>(`/projects/${id}`, {
+      method: 'DELETE'
+    }),
+
+  getProject: (id: string): Promise<Project> => request<Project>(`/projects/${id}`),
+
+  getProjects: (): Promise<Project[]> => request<Project[]>('/projects'),
+
   updateProject: (id: string, data: UpdateProjectDto): Promise<Project> =>
     request<Project>(`/projects/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
-    }),
-
-  deleteProject: (id: string): Promise<{ deleted: boolean }> =>
-    request<{ deleted: boolean }>(`/projects/${id}`, {
-      method: 'DELETE'
     })
 };
-
