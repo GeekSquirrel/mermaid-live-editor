@@ -17,12 +17,14 @@
   import HistoryIcon from '~icons/mdi/clock-outline';
   import GitAltIcon from '~icons/mdi/git';
   import OpenInNewIcon from '~icons/material-symbols/open-in-new-rounded';
+  import { onMount } from 'svelte';
   import { Button } from '../ui/button';
   import { Separator } from '../ui/separator';
   import {
     addManualEntry,
     clearActive,
     historyState,
+    loadSavedEntries,
     removeEntry,
     renameEntry,
     restoreEntries,
@@ -67,8 +69,15 @@
       : 'No saved states yet.\nClick the Save button to bookmark the current diagram and restore it later.'
   );
 
+  onMount(() => {
+    void loadSavedEntries();
+  });
+
   const tabSelectHandler = (tab: Tab) => {
     setMode(tab.id as HistoryType);
+    if (tab.id === 'manual') {
+      void loadSavedEntries();
+    }
   };
 
   const downloadHistory = () => {
@@ -102,6 +111,8 @@
   const saveHistory = () => {
     if (!addManualEntry($state.snapshot(inputState))) {
       notify('State already saved.');
+    } else {
+      notify('Saved state to history.');
     }
   };
 

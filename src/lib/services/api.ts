@@ -1,3 +1,5 @@
+import type { HistoryEntry, State } from '$lib/types';
+
 export interface Project {
   id: string;
   title: string;
@@ -14,6 +16,19 @@ export interface CreateProjectDto {
 export interface UpdateProjectDto {
   title?: string;
   code?: string;
+}
+
+export interface CreateHistoryDto {
+  id?: string;
+  name: string;
+  state: State | Record<string, unknown>;
+  time?: number;
+  type?: string;
+}
+
+export interface UpdateHistoryDto {
+  name?: string;
+  state?: State | Record<string, unknown>;
 }
 
 export interface ApiResponse<T = unknown> {
@@ -50,7 +65,24 @@ export function getApiBaseUrl(): string {
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const baseUrl = getApiBaseUrl();
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const response = await fetch(`${baseUrl}${normalizedPath}`, {
+  let fullUrl = `${baseUrl}${normalizedPath}`;
+
+  if (fullUrl.startsWith('/')) {
+    if (
+      typeof window !== 'undefined' &&
+      window.location?.origin &&
+      window.location.origin.startsWith('http')
+    ) {
+      fullUrl = `${window.location.origin}${fullUrl}`;
+    } else if (
+      typeof process !== 'undefined' &&
+      (process.env.NODE_ENV === 'test' || process.env.VITEST)
+    ) {
+      fullUrl = `http://localhost:8080${fullUrl}`;
+    }
+  }
+
+  const response = await fetch(fullUrl, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -73,10 +105,26 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  clearHistoryEntries: (type = 'manual'): Promise<{ cleared: boolean }> =>
+    request<{ cleared: boolean }>(`/history?type=${encodeURIComponent(type)}`, {
+      method: 'DELETE'
+    }),
+
+  createHistoryEntry: (data: CreateHistoryDto): Promise<HistoryEntry> =>
+    request<HistoryEntry>('/history', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
   createProject: (data: CreateProjectDto): Promise<Project> =>
     request<Project>('/projects', {
       method: 'POST',
       body: JSON.stringify(data)
+    }),
+
+  deleteHistoryEntry: (id: string): Promise<{ deleted: boolean }> =>
+    request<{ deleted: boolean }>(`/history/${id}`, {
+      method: 'DELETE'
     }),
 
   deleteProject: (id: string): Promise<{ deleted: boolean }> =>
@@ -84,9 +132,18 @@ export const api = {
       method: 'DELETE'
     }),
 
+  getHistoryEntries: (type = 'manual'): Promise<HistoryEntry[]> =>
+    request<HistoryEntry[]>(`/history?type=${encodeURIComponent(type)}`),
+
   getProject: (id: string): Promise<Project> => request<Project>(`/projects/${id}`),
 
   getProjects: (): Promise<Project[]> => request<Project[]>('/projects'),
+
+  updateHistoryEntry: (id: string, data: UpdateHistoryDto): Promise<HistoryEntry> =>
+    request<HistoryEntry>(`/history/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
 
   updateProject: (id: string, data: UpdateProjectDto): Promise<Project> =>
     request<Project>(`/projects/${id}`, {

@@ -4,7 +4,12 @@
   import DiagramDocButton from '$/components/DiagramDocumentationButton.svelte';
   import Editor from '$/components/Editor.svelte';
   import History from '$/components/History/History.svelte';
-  import { startAutoSave } from '$/components/History/historyState.svelte';
+  import {
+    addManualEntry,
+    loadSavedEntries,
+    startAutoSave
+  } from '$/components/History/historyState.svelte';
+  import { notify } from '$/util/notify';
   import EditorChooserModal from '$/components/migration/EditorChooserModal.svelte';
   import Navbar from '$/components/Navbar.svelte';
   import PanZoomToolbar from '$/components/PanZoomToolbar.svelte';
@@ -70,8 +75,23 @@
     projectState.notifyChange();
   });
 
-  // Record the Timeline for the whole session, not just while the panel is open.
-  onMount(() => startAutoSave());
+  // Record the Timeline for the whole session and load saved history from backend
+  onMount(() => {
+    void loadSavedEntries();
+    return startAutoSave();
+  });
+
+  const handleSaveDiagram = async () => {
+    await projectState.save();
+    const currentState = $state.snapshot(inputState);
+    const title = projectState.title?.trim();
+    const added = addManualEntry(currentState, title || undefined);
+    if (added) {
+      notify('Diagram saved.');
+    } else {
+      notify('State already saved.');
+    }
+  };
 
   let isHistoryOpen = $state(false);
 
@@ -105,7 +125,7 @@
     <Button
       variant="accent"
       size="sm"
-      onclick={() => void projectState.save()}
+      onclick={() => void handleSaveDiagram()}
       disabled={projectState.saveStatus === 'saving'}
       title="Save diagram">
       <SaveIcon class="size-4" />

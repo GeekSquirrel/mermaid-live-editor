@@ -1,4 +1,5 @@
 import type { HistoryEntry } from '$lib/types';
+import { api } from '$lib/services/api';
 import { defaultState, replaceInputState } from '$lib/util/state.svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -7,6 +8,7 @@ import {
   clearActive,
   historyState,
   injectHistoryIDs,
+  loadSavedEntries,
   removeEntry,
   renameEntry,
   restoreEntries,
@@ -16,6 +18,16 @@ import {
   stateKey,
   stopAutoSave
 } from './historyState.svelte';
+
+vi.mock('$lib/services/api', () => ({
+  api: {
+    clearHistoryEntries: vi.fn().mockResolvedValue({ cleared: true }),
+    createHistoryEntry: vi.fn().mockImplementation((data) => Promise.resolve(data)),
+    deleteHistoryEntry: vi.fn().mockResolvedValue({ deleted: true }),
+    getHistoryEntries: vi.fn().mockResolvedValue([]),
+    updateHistoryEntry: vi.fn().mockImplementation((id, data) => Promise.resolve({ id, ...data }))
+  }
+}));
 
 const codeState = (code: string) => ({ ...defaultState, code });
 
@@ -356,5 +368,57 @@ describe('auto-save lifecycle', () => {
     replaceInputState(codeState('graph TD\n after-stop'));
     vi.advanceTimersByTime(60_000);
     expect(entriesFor('auto')).toHaveLength(1);
+  });
+});
+
+describe('backend synchronization for saved entries', () => {
+  it('calls api.createHistoryEntry when addManualEntry is called', () => {
+    vi.mocked(api.createHistoryEntry).mockClear();
+    addManualEntry(codeState('graph TD\n sync-test'), 'Custom Title');
+    expect(api.createHistoryEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Custom Title',
+        type: 'manual'
+      })
+    );
+  });
+
+  it('loads saved entries from backend via loadSavedEntries', async () => {
+    const backendEntry: HistoryEntry = {
+      id: 'backend-1',
+      name: 'Remote Diagram',
+      state: codeState('graph TD\n remote'),
+      time: 123456789,
+      type: 'manual'
+    };
+    vi.mocked(api.getHistoryEntries).mockResolvedValueOnce([backendEntry]);
+    const loaded = await loadSavedEntries();
+    expect(loaded).toHaveLength(1);
+    expect(loaded[0].id).toBe('backend-1');
+    expect(entriesFor('manual')).toHaveLength(1);
+    expect(entriesFor('manual')[0].name).toBe('Remote Diagram');
+  });
+
+  it('calls api.updateHistoryEntry when renameEntry is called on manual entry', () => {
+    vi.mocked(api.updateHistoryEntry).mockClear();
+    addManualEntry(codeState('graph TD\n to-rename'), 'Old Title');
+    const [entry] = entriesFor('manual');
+    renameEntry(entry.id, 'New Title');
+    expect(api.updateHistoryEntry).toHaveBeenCalledWith(entry.id, { name: 'New Title' });
+  });
+
+  it('calls api.deleteHistoryEntry when removeEntry is called on manual entry', () => {
+    vi.mocked(api.deleteHistoryEntry).mockClear();
+    addManualEntry(codeState('graph TD\n to-delete'), 'Delete Title');
+    const [entry] = entriesFor('manual');
+    removeEntry(entry.id);
+    expect(api.deleteHistoryEntry).toHaveBeenCalledWith(entry.id);
+  });
+
+  it('calls api.clearHistoryEntries when clearActive is called on manual mode', () => {
+    vi.mocked(api.clearHistoryEntries).mockClear();
+    setMode('manual');
+    clearActive();
+    expect(api.clearHistoryEntries).toHaveBeenCalledWith('manual');
   });
 });

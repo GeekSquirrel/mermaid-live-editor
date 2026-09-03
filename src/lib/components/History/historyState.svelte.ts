@@ -1,5 +1,6 @@
 import type { HistoryEntry, HistoryType, Optional, State } from '$lib/types';
-import { persisted, readJSON, type Persisted } from '$lib/util/persist.svelte';
+import { api } from '$lib/services/api';
+import { persisted, readJSON, writeJSON } from '$lib/util/persist.svelte';
 import { inputState } from '$lib/util/state.svelte';
 import { logEvent } from '$lib/util/stats';
 import { generateSlug } from 'random-word-slugs';
@@ -9,7 +10,7 @@ const MAX_AUTO_HISTORY_LENGTH = 30;
 const AUTO_SAVE_INTERVAL = 60_000;
 
 const auto = persisted<HistoryEntry[]>('autoHistoryStore', []);
-const manual = persisted<HistoryEntry[]>('manualHistoryStore', []);
+let manual = $state<HistoryEntry[]>(readJSON<HistoryEntry[]>('manualHistoryStore', []));
 const mode = persisted<HistoryType>('autoHistoryMode', 'manual');
 let loader = $state<HistoryEntry[]>([]);
 
@@ -18,24 +19,16 @@ if (mode.value === 'loader') {
   mode.value = 'manual';
 }
 
-// The persisted slot backing a mode; loader is in-memory and has no slot.
-const slotFor = (m: HistoryType): Persisted<HistoryEntry[]> | null => {
-  switch (m) {
-    case 'auto': {
-      return auto;
-    }
-    case 'manual': {
-      return manual;
-    }
-    default: {
-      return null;
-    }
-  }
-};
-
 export const historyState = {
   get entries(): HistoryEntry[] {
-    return slotFor(mode.value)?.value ?? loader;
+    switch (mode.value) {
+      case 'auto':
+        return auto.value;
+      case 'manual':
+        return manual;
+      default:
+        return loader;
+    }
   },
   get loaderEntries(): HistoryEntry[] {
     return loader;
@@ -54,36 +47,66 @@ export const setMode = (next: HistoryType): void => {
 export const stateKey = (state: State): string =>
   JSON.stringify({ code: state.code, mermaid: state.mermaid });
 
-const createEntry = (state: State, type: 'auto' | 'manual'): HistoryEntry => ({
+const createEntry = (state: State, type: 'auto' | 'manual', customName?: string): HistoryEntry => ({
   id: uuidV4(),
-  name: generateSlug(2),
+  name: (customName && customName.trim()) || generateSlug(2),
   state,
   time: Date.now(),
   type
 });
 
+export const loadSavedEntries = async (): Promise<HistoryEntry[]> => {
+  try {
+    const entries = await api.getHistoryEntries('manual');
+    if (Array.isArray(entries)) {
+      manual = entries;
+      writeJSON('manualHistoryStore', entries);
+      return entries;
+    }
+  } catch (err) {
+    console.error('Failed to load saved history entries from backend:', err);
+  }
+  return manual;
+};
+
 // Returns true if added, false if it duplicated the most recent entry.
-const addEntry = (
-  slot: Persisted<HistoryEntry[]>,
-  state: State,
-  type: 'auto' | 'manual',
-  maxLength?: number
-): boolean => {
-  const entries = slot.value;
+export const addManualEntry = (state: State, customName?: string): boolean => {
+  if (manual.length > 0 && stateKey(manual[0].state) === stateKey(state)) {
+    return false;
+  }
+  const entry = createEntry(state, 'manual', customName);
+  manual = [entry, ...manual];
+  writeJSON('manualHistoryStore', manual);
+  logEvent('history', { action: 'save', type: 'manual' });
+
+  void api
+    .createHistoryEntry({
+      id: entry.id,
+      name: entry.name || 'Untitled',
+      state: entry.state,
+      time: entry.time,
+      type: 'manual'
+    })
+    .catch((err) => {
+      console.error('Failed to sync history entry to backend:', err);
+    });
+
+  return true;
+};
+
+export const addAutoEntry = (state: State): boolean => {
+  const entries = auto.value;
   if (entries.length > 0 && stateKey(entries[0].state) === stateKey(state)) {
     return false;
   }
   const trimmed =
-    maxLength && entries.length >= maxLength ? entries.slice(0, maxLength - 1) : entries;
-  slot.value = [createEntry(state, type), ...trimmed];
-  logEvent('history', { action: 'save', type });
+    entries.length >= MAX_AUTO_HISTORY_LENGTH
+      ? entries.slice(0, MAX_AUTO_HISTORY_LENGTH - 1)
+      : entries;
+  auto.value = [createEntry(state, 'auto'), ...trimmed];
+  logEvent('history', { action: 'save', type: 'auto' });
   return true;
 };
-
-export const addManualEntry = (state: State): boolean => addEntry(manual, state, 'manual');
-
-export const addAutoEntry = (state: State): boolean =>
-  addEntry(auto, state, 'auto', MAX_AUTO_HISTORY_LENGTH);
 
 // Replaces the in-memory revisions (e.g. when a gist is loaded), assigning ids.
 export const setLoaderEntries = (entries: Optional<HistoryEntry, 'id'>[]): void => {
@@ -93,31 +116,55 @@ export const setLoaderEntries = (entries: Optional<HistoryEntry, 'id'>[]): void 
 };
 
 export const removeEntry = (id: string): void => {
-  const slot = slotFor(mode.value);
-  if (!slot) {
+  if (mode.value === 'manual') {
+    manual = manual.filter((entry) => entry.id !== id);
+    writeJSON('manualHistoryStore', manual);
+    logEvent('history', { action: 'clear', type: 'single' });
+    void api.deleteHistoryEntry(id).catch((err) => {
+      console.error('Failed to delete history entry from backend:', err);
+    });
     return;
   }
-  slot.value = slot.value.filter((entry) => entry.id !== id);
-  logEvent('history', { action: 'clear', type: 'single' });
+  if (mode.value === 'auto') {
+    auto.value = auto.value.filter((entry) => entry.id !== id);
+    logEvent('history', { action: 'clear', type: 'single' });
+  }
 };
 
 export const renameEntry = (id: string, name: string): void => {
   const trimmed = name.trim();
-  const slot = slotFor(mode.value);
-  if (!trimmed || !slot) {
+  if (!trimmed) {
     return;
   }
-  slot.value = slot.value.map((entry) => (entry.id === id ? { ...entry, name: trimmed } : entry));
-  logEvent('history', { action: 'rename' });
+  if (mode.value === 'manual') {
+    manual = manual.map((entry) => (entry.id === id ? { ...entry, name: trimmed } : entry));
+    writeJSON('manualHistoryStore', manual);
+    logEvent('history', { action: 'rename' });
+    void api.updateHistoryEntry(id, { name: trimmed }).catch((err) => {
+      console.error('Failed to update history entry in backend:', err);
+    });
+    return;
+  }
+  if (mode.value === 'auto') {
+    auto.value = auto.value.map((entry) => (entry.id === id ? { ...entry, name: trimmed } : entry));
+    logEvent('history', { action: 'rename' });
+  }
 };
 
 export const clearActive = (): void => {
-  const slot = slotFor(mode.value);
-  if (!slot) {
+  if (mode.value === 'manual') {
+    manual = [];
+    writeJSON('manualHistoryStore', []);
+    logEvent('history', { action: 'clear', type: 'all' });
+    void api.clearHistoryEntries('manual').catch((err) => {
+      console.error('Failed to clear history in backend:', err);
+    });
     return;
   }
-  slot.value = [];
-  logEvent('history', { action: 'clear', type: 'all' });
+  if (mode.value === 'auto') {
+    auto.value = [];
+    logEvent('history', { action: 'clear', type: 'all' });
+  }
 };
 
 const validateEntry = (entry: HistoryEntry): boolean =>
@@ -136,19 +183,34 @@ export const restoreEntries = (data: HistoryEntry[]): RestoreResult => {
   const invalid = data.length - valid.length;
   let restored = 0;
 
-  const slots: [HistoryType, Persisted<HistoryEntry[]>][] = [
-    ['auto', auto],
-    ['manual', manual]
-  ];
-  for (const [type, slot] of slots) {
-    const incoming = valid.filter((entry) => entry.type === type);
-    if (incoming.length === 0) {
-      continue;
+  // 1. Auto entries (localStorage)
+  const incomingAuto = valid.filter((entry) => entry.type === 'auto');
+  if (incomingAuto.length > 0) {
+    const existingAutoIDs = auto.value.map(({ id }) => id);
+    const freshAuto = incomingAuto.filter(({ id }) => !existingAutoIDs.includes(id));
+    restored += freshAuto.length;
+    auto.value = [...auto.value, ...freshAuto].sort((a, b) => b.time - a.time);
+  }
+
+  // 2. Manual entries (SQLite sync)
+  const incomingManual = valid.filter((entry) => entry.type === 'manual');
+  if (incomingManual.length > 0) {
+    const existingManualIDs = manual.map(({ id }) => id);
+    const freshManual = incomingManual.filter(({ id }) => !existingManualIDs.includes(id));
+    restored += freshManual.length;
+    manual = [...manual, ...freshManual].sort((a, b) => b.time - a.time);
+    writeJSON('manualHistoryStore', manual);
+    for (const entry of freshManual) {
+      void api
+        .createHistoryEntry({
+          id: entry.id,
+          name: entry.name || 'Untitled',
+          state: entry.state,
+          time: entry.time,
+          type: 'manual'
+        })
+        .catch(console.error);
     }
-    const existingIDs = slot.value.map(({ id }) => id);
-    const fresh = incoming.filter(({ id }) => !existingIDs.includes(id));
-    restored += fresh.length;
-    slot.value = [...slot.value, ...fresh].sort((a, b) => b.time - a.time);
   }
 
   const duplicates = valid.length - restored;
@@ -163,7 +225,8 @@ const setIDs = (entries: HistoryEntry[]): HistoryEntry[] =>
 // version get ids, then persists and updates the reactive state.
 export const injectHistoryIDs = (): void => {
   auto.value = setIDs(readJSON<HistoryEntry[]>('autoHistoryStore', []));
-  manual.value = setIDs(readJSON<HistoryEntry[]>('manualHistoryStore', []));
+  manual = setIDs(readJSON<HistoryEntry[]>('manualHistoryStore', []));
+  writeJSON('manualHistoryStore', manual);
 };
 
 let autoSaveTimer: ReturnType<typeof setInterval> | undefined;
