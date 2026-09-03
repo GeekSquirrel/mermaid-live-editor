@@ -6,6 +6,8 @@ import { logEvent } from '$lib/util/stats';
 import { generateSlug } from 'random-word-slugs';
 import { v4 as uuidV4 } from 'uuid';
 
+import { projectState } from '$lib/util/projectState.svelte';
+
 const MAX_AUTO_HISTORY_LENGTH = 30;
 const AUTO_SAVE_INTERVAL = 60_000;
 
@@ -28,6 +30,9 @@ if (mode.value === 'loader') {
 }
 
 export const historyState = {
+  get bookmarkCount(): number {
+    return manual.length;
+  },
   get entries(): HistoryEntry[] {
     switch (mode.value) {
       case 'auto':
@@ -125,8 +130,12 @@ export const addManualEntry = (
       time: entry.time,
       type: 'manual'
     })
+    .then(() => {
+      projectState.showBookmarked();
+    })
     .catch((err) => {
       console.error('Failed to sync history entry to backend:', err);
+      projectState.showBookmarkError();
     });
 
   return true;
@@ -291,10 +300,12 @@ let autoSaveTimer: ReturnType<typeof setInterval> | undefined;
 // Idempotent; returns the stop function for use as a lifecycle cleanup.
 export const startAutoSave = (): (() => void) => {
   if (autoSaveTimer === undefined) {
-    autoSaveTimer = setInterval(
-      () => addAutoEntry($state.snapshot(inputState)),
-      AUTO_SAVE_INTERVAL
-    );
+    autoSaveTimer = setInterval(() => {
+      const added = addAutoEntry($state.snapshot(inputState));
+      if (added || projectState.hasChanges) {
+        void projectState.save();
+      }
+    }, AUTO_SAVE_INTERVAL);
   }
   return stopAutoSave;
 };

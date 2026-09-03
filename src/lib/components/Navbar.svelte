@@ -8,41 +8,29 @@
 </script>
 
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import MainMenu from '$/components/MainMenu.svelte';
+  import ProjectBreadcrumb from '$/components/ProjectBreadcrumb.svelte';
   import { Button } from '$/components/ui/button';
-  import { Separator } from '$/components/ui/separator';
   import type { Snippet } from 'svelte';
-  import MermaidIcon from '~icons/custom/mermaid';
   import GithubIcon from '~icons/mdi/github';
 
   interface Props {
     mobileToggle?: Snippet;
-    children: Snippet;
+    children?: Snippet;
   }
 
   let { children, mobileToggle }: Props = $props();
 </script>
 
-<nav class="z-50 flex p-4 sm:p-6">
-  <div class="flex flex-1 items-center gap-2">
+<nav class="z-50 flex items-center justify-between p-4 sm:p-6">
+  <div class="flex flex-1 items-center gap-2 overflow-hidden">
     <MainMenu />
-    <MermaidIcon class="size-6" />
-    <a href={resolve('/', {})} class="whitespace-nowrap text-accent">
-      {#if !mobileToggle}
-        Mermaid
-      {/if}
-      Live Editor
-    </a>
+    <ProjectBreadcrumb />
   </div>
   <div
     id="menu"
     class="hidden flex-nowrap items-center justify-between gap-3 overflow-hidden md:flex">
-    <a
-      href={resolve('/projects', {})}
-      class="flex items-center gap-1 text-sm font-medium transition-colors hover:text-accent">
-      Projects
-    </a>
+    {@render children?.()}
     <Button
       variant="ghost"
       size="sm"
@@ -53,8 +41,6 @@
       aria-label="GitHub Repository">
       <GithubIcon class="size-4" />
     </Button>
-    <Separator orientation="vertical" />
-    {@render children()}
   </div>
   {@render mobileToggle?.()}
 </nav>

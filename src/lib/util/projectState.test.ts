@@ -37,8 +37,8 @@ describe('ProjectState auto-save & lifecycle', () => {
     vi.useRealTimers();
   });
 
-  it('has debounce duration set to 30 seconds', () => {
-    expect(AUTO_SAVE_DEBOUNCE_MS).toBe(30_000);
+  it('has debounce duration set to 10 seconds', () => {
+    expect(AUTO_SAVE_DEBOUNCE_MS).toBe(10_000);
   });
 
   it('remains in idle status on initial load of an existing project', async () => {
@@ -54,11 +54,11 @@ describe('ProjectState auto-save & lifecycle', () => {
     // Calling notifyChange with untouched code should not trigger save
     project.notifyChange();
     expect(project.saveStatus).toBe('idle');
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(10_000);
     expect(api.updateProject).not.toHaveBeenCalled();
   });
 
-  it('clears prompt to idle on edit, and saves after 30 seconds of inactivity', async () => {
+  it('clears prompt to idle on edit, and saves after 10 seconds of inactivity', async () => {
     window.history.replaceState(null, '', '/edit?projectId=test-id');
     await project.loadFromUrl();
 
@@ -66,27 +66,28 @@ describe('ProjectState auto-save & lifecycle', () => {
     updateCode('graph TD\n UserEditedCode');
     project.notifyChange();
 
-    // While editing before 30s, saveStatus must be idle (prompt disappears)
+    // While editing before 10s, saveStatus must be idle (prompt disappears)
     expect(project.saveStatus).toBe('idle');
 
-    // 2. 29 seconds pass with user typing again
-    await vi.advanceTimersByTimeAsync(29_000);
+    // 2. 9 seconds pass with user typing again
+    await vi.advanceTimersByTimeAsync(9_000);
     expect(api.updateProject).not.toHaveBeenCalled();
 
-    // Typing again resets the 30s timer
+    // Typing again resets the 10s timer
     updateCode('graph TD\n UserEditedCodeAgain');
     project.notifyChange();
     expect(project.saveStatus).toBe('idle');
 
-    await vi.advanceTimersByTimeAsync(20_000);
+    await vi.advanceTimersByTimeAsync(5_000);
     expect(api.updateProject).not.toHaveBeenCalled();
 
-    // 3. Full 30s elapses after last operation -> saves
-    await vi.advanceTimersByTimeAsync(10_000);
+    // 3. Full 10s elapses after last operation -> saves
+    await vi.advanceTimersByTimeAsync(5_000);
     expect(api.updateProject).toHaveBeenCalledWith('test-id', {
       title: 'Server Project',
       code: 'graph TD\n UserEditedCodeAgain'
     });
+    // Save completed in < 3s, directly shows saved
     expect(project.saveStatus).toBe('saved');
 
     // 4. When user edits again, prompt disappears (saveStatus becomes idle)
@@ -95,23 +96,48 @@ describe('ProjectState auto-save & lifecycle', () => {
     expect(project.saveStatus).toBe('idle');
   });
 
-  it('manual save transitions through saving to saved', async () => {
+  it('shows saving status only if save takes longer than 3 seconds', async () => {
     window.history.replaceState(null, '', '/edit?projectId=manual-id');
     await project.loadFromUrl();
 
-    updateCode('graph TD\n ManualCode');
+    // Simulate slow network update (takes 4s)
+    let resolveSlowUpdate: () => void;
+    vi.mocked(api.updateProject).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSlowUpdate = () =>
+            resolve({
+              code: 'slow',
+              created_at: 0,
+              id: 'manual-id',
+              title: 'Server Project',
+              updated_at: 0
+            });
+        })
+    );
+
+    updateCode('graph TD\n SlowCode');
     const savePromise = project.save();
+
+    // Initially < 3s, does not show saving
+    expect(project.saveStatus).toBe('idle');
+
+    // Advance 2s (still < 3s)
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(project.saveStatus).toBe('idle');
+
+    // Advance 1s more (reaches 3s threshold) -> shows saving
+    await vi.advanceTimersByTimeAsync(1_000);
     expect(project.saveStatus).toBe('saving');
 
+    // Complete the save
+    resolveSlowUpdate?.();
     await savePromise;
+
     expect(project.saveStatus).toBe('saved');
-    expect(api.updateProject).toHaveBeenCalledWith('manual-id', {
-      title: 'Server Project',
-      code: 'graph TD\n ManualCode'
-    });
   });
 
-  it('immediately triggers save when creating a new project (no projectId in URL)', async () => {
+  it('silently saves when creating a new project (no projectId in URL, saveStatus remains idle)', async () => {
     window.history.replaceState(null, '', '/edit');
     updateCode('graph TD\n NewProjectCode');
 
@@ -122,11 +148,12 @@ describe('ProjectState auto-save & lifecycle', () => {
       code: 'graph TD\n NewProjectCode'
     });
     expect(project.id).toBe('created-id-123');
-    expect(project.saveStatus).toBe('saved');
+    // Silent save: saveStatus is NOT set to saving or saved
+    expect(project.saveStatus).toBe('idle');
     expect(window.location.search).toContain('projectId=created-id-123');
   });
 
-  it('immediately triggers save when renaming a project', async () => {
+  it('silently saves when renaming a project (saveStatus remains idle)', async () => {
     window.history.replaceState(null, '', '/edit?projectId=existing-proj-id');
     await project.loadFromUrl();
 
@@ -137,6 +164,21 @@ describe('ProjectState auto-save & lifecycle', () => {
       title: 'My Renamed Architecture',
       code: 'graph TD\n ServerCode'
     });
-    expect(project.saveStatus).toBe('saved');
+    // Silent save: saveStatus is NOT set to saving or saved
+    expect(project.saveStatus).toBe('idle');
+  });
+
+  it('handles bookmark status lifecycle and 3s fadeout', async () => {
+    expect(project.bookmarkStatus).toBe('idle');
+
+    project.showBookmarked();
+    expect(project.bookmarkStatus).toBe('bookmarked');
+
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(project.bookmarkStatus).toBe('idle');
+
+    project.showBookmarkError('Failed to save');
+    expect(project.bookmarkStatus).toBe('error');
+    expect(project.bookmarkErrorMessage).toBe('Failed to save');
   });
 });

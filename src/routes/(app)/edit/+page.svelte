@@ -20,22 +20,21 @@
   import { Button } from '$/components/ui/button';
   import * as Resizable from '$/components/ui/resizable';
   import { Switch } from '$/components/ui/switch';
-  import { Toggle } from '$/components/ui/toggle';
   import VersionSecurityToolbar from '$/components/VersionSecurityToolbar.svelte';
   import View from '$/components/View.svelte';
   import type { EditorMode, Tab } from '$/types';
   import { shouldShowEditorChooser } from '$/util/migration/domainMigration';
   import { PanZoomState } from '$/util/panZoom';
-  import ProjectSaveBar from '$/components/ProjectSaveBar.svelte';
   import { projectState } from '$/util/projectState.svelte';
   import { validatedState, updateCodeStore, urls, inputState } from '$/util/state.svelte';
   import { logEvent } from '$/util/stats';
   import { initHandler } from '$/util/util';
   import { onMount } from 'svelte';
   import CodeIcon from '~icons/custom/code';
+  import BookmarkIcon from '~icons/material-symbols/bookmark-outline-rounded';
   import HistoryIcon from '~icons/material-symbols/history';
   import GearIcon from '~icons/material-symbols/settings-outline-rounded';
-  import SaveIcon from '~icons/material-symbols/save-outline-rounded';
+  import { historyState, setMode } from '$/components/History/historyState.svelte';
 
   const panZoomState = new PanZoomState();
 
@@ -89,19 +88,45 @@
 
   const handleSaveDiagram = async () => {
     await projectState.save();
+  };
+
+  const handleBookmarkDiagram = () => {
     const currentId = projectState.id;
     setCurrentProjectId(currentId);
     const currentState = $state.snapshot(inputState);
     const title = projectState.title?.trim();
     const added = addManualEntry(currentState, title || undefined, currentId);
     if (added) {
-      notify('Diagram saved.');
+      notify('Diagram state bookmarked.');
     } else {
-      notify('State already saved.');
+      notify('State already bookmarked.');
+      projectState.showBookmarked();
     }
   };
 
   let isHistoryOpen = $state(false);
+
+  const toggleBookmarks = () => {
+    if (!isHistoryOpen) {
+      setMode('manual');
+      isHistoryOpen = true;
+    } else if (historyState.mode === 'manual') {
+      isHistoryOpen = false;
+    } else {
+      setMode('manual');
+    }
+  };
+
+  const toggleTimeline = () => {
+    if (!isHistoryOpen) {
+      setMode('auto');
+      isHistoryOpen = true;
+    } else if (historyState.mode === 'auto') {
+      isHistoryOpen = false;
+    } else {
+      setMode('auto');
+    }
+  };
 
   let editorPane: Resizable.Pane | undefined;
   $effect(() => {
@@ -125,20 +150,33 @@
   {/snippet}
 
   <Navbar mobileToggle={isMobile ? mobileToggle : undefined}>
-    <ProjectSaveBar />
-    <Toggle bind:pressed={isHistoryOpen} size="sm" title="History" aria-label="History">
-      <HistoryIcon />
-    </Toggle>
-    <Share />
+    <div class="relative inline-flex">
+      <Button
+        variant={isHistoryOpen && historyState.mode === 'manual' ? 'secondary' : 'default'}
+        size="sm"
+        class="gap-1.5"
+        onclick={toggleBookmarks}
+        title="Bookmarks">
+        <BookmarkIcon class="size-4" />
+        Bookmarks
+      </Button>
+      {#if historyState.bookmarkCount > 0}
+        <span
+          class="pointer-events-none absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-foreground shadow-sm">
+          {historyState.bookmarkCount}
+        </span>
+      {/if}
+    </div>
     <Button
-      variant="accent"
+      variant={isHistoryOpen && historyState.mode === 'auto' ? 'secondary' : 'default'}
       size="sm"
-      onclick={() => void handleSaveDiagram()}
-      disabled={projectState.saveStatus === 'saving'}
-      title="Save diagram">
-      <SaveIcon class="size-4" />
-      Save diagram
+      class="gap-1.5"
+      onclick={toggleTimeline}
+      title="Timeline">
+      <HistoryIcon class="size-4" />
+      Timeline
     </Button>
+    <Share />
   </Navbar>
 
   <div class="flex flex-1 flex-col overflow-hidden" bind:clientWidth={width}>
@@ -175,7 +213,11 @@
         <Resizable.Pane minSize={15} class="relative flex h-full flex-1 flex-col overflow-hidden">
           <View {panZoomState} shouldShowGrid={validatedState.current.grid} />
           <div class="absolute top-0 right-0">
-            <PanZoomToolbar {panZoomState} fullScreenHref={urls.current.view} />
+            <PanZoomToolbar
+              {panZoomState}
+              fullScreenHref={urls.current.view}
+              onSave={() => void handleSaveDiagram()}
+              onBookmark={handleBookmarkDiagram} />
           </div>
           <div class="absolute right-0 bottom-0"><VersionSecurityToolbar /></div>
           <div class="absolute bottom-0 left-0 sm:left-5"><SyncRoughToolbar /></div>

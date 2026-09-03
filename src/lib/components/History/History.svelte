@@ -8,16 +8,17 @@
   import dayjs from 'dayjs';
   import dayjsRelativeTime from 'dayjs/plugin/relativeTime';
   import BookmarkIcon from '~icons/material-symbols/bookmark-outline-rounded';
+  import BookmarkAddIcon from '~icons/material-symbols/bookmark-add-outline-rounded';
   import TrashAltIcon from '~icons/material-symbols/delete-outline-rounded';
   import DownloadIcon from '~icons/material-symbols/download-rounded';
   import EditIcon from '~icons/material-symbols/edit-outline-rounded';
-  import SaveIcon from '~icons/material-symbols/save-outline-rounded';
   import UndoIcon from '~icons/material-symbols/settings-backup-restore-rounded';
   import UploadIcon from '~icons/material-symbols/upload-rounded';
   import HistoryIcon from '~icons/mdi/clock-outline';
   import GitAltIcon from '~icons/mdi/git';
   import OpenInNewIcon from '~icons/material-symbols/open-in-new-rounded';
   import { onMount } from 'svelte';
+  import { projectState } from '$lib/util/projectState.svelte';
   import { Button } from '../ui/button';
   import { Separator } from '../ui/separator';
   import {
@@ -110,9 +111,10 @@
 
   const saveHistory = () => {
     if (!addManualEntry($state.snapshot(inputState))) {
-      notify('State already saved.');
+      notify('State already bookmarked.');
+      projectState.showBookmarked();
     } else {
-      notify('Saved state to history.');
+      notify('Saved state to bookmarks.');
     }
   };
 
@@ -139,12 +141,14 @@
 <Card onselect={tabSelectHandler} isOpen isClosable={false} {tabs} activeTabID={historyState.mode}>
   {#snippet actions()}
     <div class="flex items-center gap-2">
-      <Button
-        size="icon"
-        variant="ghost"
-        id="uploadHistory"
-        onclick={uploadHistory}
-        title="Upload history"><UploadIcon /></Button>
+      {#if historyState.mode !== 'auto'}
+        <Button
+          size="icon"
+          variant="ghost"
+          id="uploadHistory"
+          onclick={uploadHistory}
+          title="Upload history"><UploadIcon /></Button>
+      {/if}
       {#if historyState.entries.length > 0}
         <Button
           id="downloadHistory"
@@ -153,13 +157,15 @@
           onclick={downloadHistory}
           title="Download history"><DownloadIcon /></Button>
       {/if}
-      <Separator orientation="vertical" />
-      <Button
-        id="saveHistory"
-        size="icon"
-        variant="ghost"
-        onclick={saveHistory}
-        title="Save current state"><SaveIcon /></Button>
+      {#if historyState.mode !== 'auto'}
+        <Separator orientation="vertical" />
+        <Button
+          id="saveHistory"
+          size="icon"
+          variant="ghost"
+          onclick={saveHistory}
+          title="Bookmark current state"><BookmarkAddIcon /></Button>
+      {/if}
       {#if historyState.mode !== 'loader'}
         <Button
           id="clearHistory"

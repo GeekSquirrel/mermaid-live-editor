@@ -3,21 +3,55 @@ import { inputState, updateCode } from '$lib/util/state.svelte';
 import { debounce } from 'lodash-es';
 import { SvelteURL, SvelteURLSearchParams } from 'svelte/reactivity';
 
-export const AUTO_SAVE_DEBOUNCE_MS = 30_000;
+export const AUTO_SAVE_DEBOUNCE_MS = 10_000;
+export const SAVING_DISPLAY_DELAY_MS = 3_000;
+
+export interface SaveOptions {
+  silent?: boolean;
+}
 
 export class ProjectState {
   id = $state<string | null>(null);
   title = $state<string>('Untitled Project');
   saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
   errorMessage = $state<string | null>(null);
+  bookmarkStatus = $state<'idle' | 'bookmarked' | 'error'>('idle');
+  bookmarkErrorMessage = $state<string | null>(null);
 
   private initialized = false;
   lastSavedCode = '';
   lastSavedTitle = '';
   debouncedSave: ReturnType<typeof debounce>;
+  private savingTimer?: ReturnType<typeof setTimeout>;
+  private bookmarkTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
     this.debouncedSave = debounce(() => void this.save(), AUTO_SAVE_DEBOUNCE_MS);
+  }
+
+  get hasChanges(): boolean {
+    return inputState.code !== this.lastSavedCode || this.title !== this.lastSavedTitle;
+  }
+
+  showBookmarked() {
+    if (this.bookmarkTimer) {
+      clearTimeout(this.bookmarkTimer);
+    }
+    this.bookmarkStatus = 'bookmarked';
+    this.bookmarkErrorMessage = null;
+    this.bookmarkTimer = setTimeout(() => {
+      this.bookmarkStatus = 'idle';
+      this.bookmarkTimer = undefined;
+    }, 3_000);
+  }
+
+  showBookmarkError(message = 'Failed to save bookmark') {
+    if (this.bookmarkTimer) {
+      clearTimeout(this.bookmarkTimer);
+      this.bookmarkTimer = undefined;
+    }
+    this.bookmarkStatus = 'error';
+    this.bookmarkErrorMessage = message;
   }
 
   async loadFromUrl() {
@@ -32,8 +66,8 @@ export class ProjectState {
       this.saveStatus = 'idle';
       this.initialized = true;
 
-      // 新建项目时应当立刻触发一次保存
-      await this.save();
+      // 新建项目时静默保存
+      await this.save({ silent: true });
       return;
     }
 
@@ -61,11 +95,12 @@ export class ProjectState {
     const trimmed = newTitle.trim() || 'Untitled Project';
     this.title = trimmed;
     if (trimmed !== this.lastSavedTitle) {
-      await this.save();
+      // 重命名时静默保存，不显示 saving/saved 标识
+      await this.save({ silent: true });
     }
   }
 
-  async save() {
+  async save(options: SaveOptions = {}) {
     if (!this.initialized) return;
 
     this.debouncedSave.cancel();
@@ -73,8 +108,20 @@ export class ProjectState {
     const currentCode = inputState.code;
     if (!currentCode) return;
 
-    this.saveStatus = 'saving';
-    this.errorMessage = null;
+    if (this.savingTimer) {
+      clearTimeout(this.savingTimer);
+      this.savingTimer = undefined;
+    }
+
+    const isSilent = Boolean(options.silent);
+
+    if (!isSilent) {
+      this.errorMessage = null;
+      // 当保存过程小于3秒时，不显示 saving，直接在成功后显示 saved；超过3秒才显示 saving
+      this.savingTimer = setTimeout(() => {
+        this.saveStatus = 'saving';
+      }, SAVING_DISPLAY_DELAY_MS);
+    }
 
     try {
       const currentTitle = this.title.trim() || 'Untitled Project';
@@ -85,7 +132,6 @@ export class ProjectState {
         });
         this.lastSavedCode = currentCode;
         this.lastSavedTitle = this.title;
-        this.saveStatus = 'saved';
       } else {
         const created = await api.createProject({
           title: currentTitle,
@@ -94,16 +140,28 @@ export class ProjectState {
         this.id = created.id;
         this.lastSavedCode = currentCode;
         this.lastSavedTitle = this.title;
-        this.saveStatus = 'saved';
 
         const newUrl = new SvelteURL(window.location.href);
         newUrl.searchParams.set('projectId', created.id);
         window.history.replaceState({}, '', newUrl.toString());
       }
+
+      if (this.savingTimer) {
+        clearTimeout(this.savingTimer);
+        this.savingTimer = undefined;
+      }
+
+      if (!isSilent) {
+        this.saveStatus = 'saved';
+      }
     } catch (err) {
       console.error('Failed to save project:', err);
+      if (this.savingTimer) {
+        clearTimeout(this.savingTimer);
+        this.savingTimer = undefined;
+      }
       this.saveStatus = 'error';
-      this.errorMessage = err instanceof Error ? err.message : 'Failed to save project to backend';
+      this.errorMessage = err instanceof Error ? err.message : 'Failed to save diagram';
     }
   }
 

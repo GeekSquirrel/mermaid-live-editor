@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { resolve } from '$app/paths';
   import Navbar from '$/components/Navbar.svelte';
   import { Button } from '$/components/ui/button';
   import { api, type Project } from '$lib/services/api';
@@ -32,7 +33,11 @@
   });
 
   const handleDelete = async (project: Project) => {
-    if (!confirm(`Are you sure you want to delete "${project.title || 'Untitled Project'}"? This action cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete "${project.title || 'Untitled Project'}"? This action cannot be undone.`
+      )
+    ) {
       return;
     }
     try {
@@ -44,9 +49,10 @@
   };
 
   const filteredProjects = $derived(
-    projects.filter((p) =>
-      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.code.toLowerCase().includes(searchQuery.toLowerCase())
+    projects.filter(
+      (p) =>
+        p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.code.toLowerCase().includes(searchQuery.toLowerCase())
     )
   );
 
@@ -65,30 +71,31 @@
 <div class="flex h-full flex-col overflow-hidden bg-background text-foreground">
   <Navbar>
     <a
-      href="/edit"
+      href={resolve('/edit', {})}
       class="inline-flex items-center gap-1 text-sm font-medium hover:text-accent">
       <AddIcon class="size-4" />
       New Project
     </a>
   </Navbar>
 
-  <main class="flex-1 overflow-y-auto p-4 sm:p-8 max-w-7xl w-full mx-auto">
-    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+  <main class="mx-auto w-full max-w-7xl flex-1 overflow-y-auto p-4 sm:p-8">
+    <div class="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
       <div>
         <h1 class="text-2xl font-bold tracking-tight">My Projects</h1>
-        <p class="text-sm text-muted-foreground mt-1">
+        <p class="mt-1 text-sm text-muted-foreground">
           Manage your Mermaid diagrams and chart projects saved in cloud storage
         </p>
       </div>
 
-      <div class="flex items-center gap-3 w-full sm:w-auto">
+      <div class="flex w-full items-center gap-3 sm:w-auto">
         <div class="relative flex-1 sm:w-64">
-          <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <SearchIcon
+            class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search projects..."
             bind:value={searchQuery}
-            class="w-full rounded-md border border-input bg-background pl-9 pr-3 py-1.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+            class="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none" />
         </div>
 
         <Button variant="outline" size="sm" onclick={loadProjects} title="Refresh list">
@@ -105,20 +112,23 @@
     {#if loading}
       <div class="flex h-64 items-center justify-center">
         <div class="flex flex-col items-center gap-2 text-muted-foreground">
-          <div class="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <div
+            class="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent">
+          </div>
           <span class="text-sm">Loading projects...</span>
         </div>
       </div>
     {:else if error}
       <div class="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center">
         <p class="text-sm font-medium text-destructive">{error}</p>
-        <p class="text-xs text-muted-foreground mt-1">Please make sure the backend server (http://localhost:8080) is running</p>
-        <Button variant="outline" size="sm" class="mt-4" onclick={loadProjects}>
-          Retry
-        </Button>
+        <p class="mt-1 text-xs text-muted-foreground">
+          Please make sure the backend server (http://localhost:8080) is running
+        </p>
+        <Button variant="outline" size="sm" class="mt-4" onclick={loadProjects}>Retry</Button>
       </div>
     {:else if filteredProjects.length === 0}
-      <div class="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border p-8 text-center">
+      <div
+        class="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border p-8 text-center">
         {#if searchQuery}
           <p class="text-muted-foreground">No projects found matching "{searchQuery}"</p>
           <Button variant="ghost" size="sm" class="mt-2" onclick={() => (searchQuery = '')}>
@@ -126,7 +136,9 @@
           </Button>
         {:else}
           <p class="text-base font-medium">No projects yet. Click New Project to get started.</p>
-          <p class="text-sm text-muted-foreground mt-1">Created projects will be automatically synchronized to SQLite database</p>
+          <p class="mt-1 text-sm text-muted-foreground">
+            Created projects will be automatically synchronized to SQLite database
+          </p>
           <Button variant="accent" size="sm" href="/edit" class="mt-4 gap-1">
             <AddIcon class="size-4" />
             Create First Project
@@ -134,20 +146,23 @@
         {/if}
       </div>
     {:else}
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {#each filteredProjects as project (project.id)}
-          <div class="group flex flex-col justify-between rounded-lg border border-border bg-card p-4 transition-all hover:shadow-md hover:border-primary/50">
+          <div
+            class="group flex flex-col justify-between rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-md">
             <div>
               <div class="flex items-start justify-between gap-2">
-                <h2 class="font-semibold text-card-foreground line-clamp-1 group-hover:text-primary">
+                <h2
+                  class="line-clamp-1 font-semibold text-card-foreground group-hover:text-primary">
                   {project.title || 'Untitled Project'}
                 </h2>
               </div>
-              <p class="text-xs text-muted-foreground mt-1">
+              <p class="mt-1 text-xs text-muted-foreground">
                 Updated {formatDate(project.updated_at)}
               </p>
 
-              <div class="mt-3 rounded bg-muted/50 p-2 font-mono text-xs text-muted-foreground line-clamp-3 overflow-hidden h-16">
+              <div
+                class="mt-3 line-clamp-3 h-16 overflow-hidden rounded bg-muted/50 p-2 font-mono text-xs text-muted-foreground">
                 {project.code || '(Empty diagram)'}
               </div>
             </div>
@@ -158,13 +173,13 @@
                 size="sm"
                 class="h-8 px-2 text-xs"
                 onclick={() => handleDelete(project)}>
-                <DeleteIcon class="size-3.5 mr-1" />
+                <DeleteIcon class="mr-1 size-3.5" />
                 Delete
               </Button>
               <Button
                 variant="default"
                 size="sm"
-                class="h-8 px-3 text-xs gap-1"
+                class="h-8 gap-1 px-3 text-xs"
                 href={`/edit?projectId=${project.id}`}>
                 <OpenIcon class="size-3.5" />
                 Open Editor
@@ -176,4 +191,3 @@
     {/if}
   </main>
 </div>
-
