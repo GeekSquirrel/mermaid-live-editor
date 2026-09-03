@@ -110,4 +110,33 @@ describe('ProjectState auto-save & lifecycle', () => {
       code: 'graph TD\n ManualCode'
     });
   });
+
+  it('immediately triggers save when creating a new project (no projectId in URL)', async () => {
+    window.history.replaceState(null, '', '/edit');
+    updateCode('graph TD\n NewProjectCode');
+
+    await project.loadFromUrl();
+
+    expect(api.createProject).toHaveBeenCalledWith({
+      title: 'Untitled Project',
+      code: 'graph TD\n NewProjectCode'
+    });
+    expect(project.id).toBe('created-id-123');
+    expect(project.saveStatus).toBe('saved');
+    expect(window.location.search).toContain('projectId=created-id-123');
+  });
+
+  it('immediately triggers save when renaming a project', async () => {
+    window.history.replaceState(null, '', '/edit?projectId=existing-proj-id');
+    await project.loadFromUrl();
+
+    await project.rename('My Renamed Architecture');
+
+    expect(project.title).toBe('My Renamed Architecture');
+    expect(api.updateProject).toHaveBeenCalledWith('existing-proj-id', {
+      title: 'My Renamed Architecture',
+      code: 'graph TD\n ServerCode'
+    });
+    expect(project.saveStatus).toBe('saved');
+  });
 });

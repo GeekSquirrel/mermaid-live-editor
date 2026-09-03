@@ -63,10 +63,10 @@
   let showEditorChooser = $state(false);
 
   onMount(async () => {
+    await initHandler();
     await projectState.loadFromUrl();
     setCurrentProjectId(projectState.id);
     showEditorChooser = shouldShowEditorChooser();
-    await initHandler();
     window.addEventListener('appinstalled', () => {
       logEvent('pwaInstalled', { isMobile });
     });

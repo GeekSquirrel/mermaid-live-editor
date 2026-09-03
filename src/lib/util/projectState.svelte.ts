@@ -12,8 +12,8 @@ export class ProjectState {
   errorMessage = $state<string | null>(null);
 
   private initialized = false;
-  private lastSavedCode = '';
-  private lastSavedTitle = '';
+  lastSavedCode = '';
+  lastSavedTitle = '';
   debouncedSave: ReturnType<typeof debounce>;
 
   constructor() {
@@ -30,9 +30,10 @@ export class ProjectState {
       this.id = null;
       this.title = 'Untitled Project';
       this.saveStatus = 'idle';
-      this.lastSavedCode = inputState.code;
-      this.lastSavedTitle = this.title;
       this.initialized = true;
+
+      // 新建项目时应当立刻触发一次保存
+      await this.save();
       return;
     }
 
@@ -52,6 +53,15 @@ export class ProjectState {
       this.saveStatus = 'error';
     } finally {
       this.initialized = true;
+    }
+  }
+
+  async rename(newTitle: string) {
+    if (!this.initialized) return;
+    const trimmed = newTitle.trim() || 'Untitled Project';
+    this.title = trimmed;
+    if (trimmed !== this.lastSavedTitle) {
+      await this.save();
     }
   }
 
