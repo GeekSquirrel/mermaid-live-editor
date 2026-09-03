@@ -68,7 +68,6 @@ const processState = async (state: State) => {
       setTimeout(() => window.location.reload(), 500);
     }
     lastDiagramType = diagramType;
-    JSON.parse(state.mermaid);
   } catch (error) {
     processed.error = error as Error;
     errorDebug();

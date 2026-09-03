@@ -1,10 +1,8 @@
 <script lang="ts">
   import type { EditorProps } from '$/types';
   import { validatedState } from '$/util/state.svelte';
-  import { json, jsonLanguage } from '@codemirror/lang-json';
   import { markdown } from '@codemirror/lang-markdown';
   import { yamlFrontmatter } from '@codemirror/lang-yaml';
-  import { language } from '@codemirror/language';
   import { Compartment, EditorState } from '@codemirror/state';
   import { EditorView } from '@codemirror/view';
   import { vsCodeDark } from '@fsegurai/codemirror-theme-vscode-dark';
@@ -20,7 +18,6 @@
   // against the not-yet-revalidated state and revert the user's input.
   let currentText = '';
   const themeCompartment = new Compartment();
-  const languageCompartment = new Compartment();
 
   const { onUpdate }: EditorProps = $props();
 
@@ -36,7 +33,7 @@
         doc: currentText,
         extensions: [
           basicSetup,
-          languageCompartment.of([]),
+          yamlFrontmatter({ content: markdown() }),
           themeCompartment.of([]),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
@@ -70,29 +67,17 @@
   });
 
   $effect(() => {
-    const { editorMode, code, mermaid } = validatedState.current;
-    const text = editorMode === 'code' ? code : mermaid;
-    if (currentText === text || !editorView) {
+    const { code } = validatedState.current;
+    if (currentText === code || !editorView) {
       return;
     }
-    currentText = text;
+    currentText = code;
     editorView.dispatch({
       changes: {
         from: 0,
         to: editorView.state.doc.length,
-        insert: text
+        insert: code
       }
-    });
-    const stateLanguage = editorView.state.facet(language);
-    const isStateJson = stateLanguage === jsonLanguage;
-    const isCodeJson = editorMode === 'config';
-    if (stateLanguage && isStateJson === isCodeJson) {
-      return;
-    }
-    editorView.dispatch({
-      effects: languageCompartment.reconfigure(
-        isCodeJson ? json() : yamlFrontmatter({ content: markdown() })
-      )
     });
   });
 </script>

@@ -22,6 +22,11 @@ export const initEditor = (monacoEditor: typeof Monaco): void => {
       keywords: string[];
     }
   > = {
+    architecture: {
+      blockKeywords: ['group', 'service'],
+      keywords: ['in', 'title', 'accDescription'],
+      typeKeywords: ['architecture', 'architecture-beta']
+    },
     c4Diagram: {
       blockKeywords: [
         'Boundary',
@@ -242,6 +247,18 @@ export const initEditor = (monacoEditor: typeof Monaco): void => {
         {}
       ),
     tokenizer: {
+      architecture: [
+        configDirectiveHandler,
+        [/(title|accDescription)(.*$)/, ['keyword', 'string']],
+        [/^\s*(group|service)\b/, 'typeKeyword'],
+        [/\b(in)\b/, 'keyword'],
+        [/(\w+):([LTBR])/, ['variable', 'delimiter.bracket']],
+        [/--/, 'transition'],
+        [/\[.*?\]/, 'string'],
+        [/\(.*?\)/, 'variable'],
+        [/".*?"/, 'string'],
+        [commentRegex, 'comment']
+      ],
       c4Diagram: [
         configDirectiveHandler,
         [/(title|accDescription)(.*$)/, ['keyword', 'string']],
@@ -327,6 +344,16 @@ export const initEditor = (monacoEditor: typeof Monaco): void => {
         [/[&;]/, 'delimiter.bracket'],
         [/".*?"/, 'string'],
         [commentRegex, 'comment']
+      ],
+      frontmatter: [
+        [/^---$/, { token: 'meta.content', next: '@pop' }],
+        [/^\s*([A-Za-z0-9_-]+)(\s*:)/, ['typeKeyword', 'delimiter.bracket']],
+        [/".*?"/, 'string'],
+        [/'.*?'/, 'string'],
+        [/\d+/, 'number'],
+        [/\b(true|false)\b/, 'keyword'],
+        [/#.*$/, 'comment'],
+        [/[^-\n\r]+/, 'string']
       ],
       gantt: [
         configDirectiveHandler,
@@ -455,6 +482,8 @@ export const initEditor = (monacoEditor: typeof Monaco): void => {
         [/".*?"/, 'string']
       ],
       root: [
+        [/^---$/, { token: 'meta.content', next: '@frontmatter' }],
+        [/^\s*architecture(-beta)?/m, 'typeKeyword', 'architecture'],
         [/^\s*gitGraph/m, 'typeKeyword', 'gitGraph'],
         [/^\s*info/m, 'typeKeyword', 'info'],
         [/^\s*pie/m, 'typeKeyword', 'pie'],

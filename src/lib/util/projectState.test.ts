@@ -187,4 +187,25 @@ describe('ProjectState auto-save & lifecycle', () => {
     expect(project.bookmarkStatus).toBe('error');
     expect(project.bookmarkErrorMessage).toBe('Failed to save');
   });
+
+  it('triggers immediate save and updates saveStatus to saved when saving unsaved changes', async () => {
+    window.history.replaceState(null, '', '/edit?projectId=existing-proj-id');
+    await project.loadFromUrl();
+
+    expect(project.hasChanges).toBe(false);
+
+    // User types new code in editor
+    updateCode('graph TD\n ModifiedCode');
+    expect(project.hasChanges).toBe(true);
+
+    // Outside click / blur triggers save()
+    await project.save();
+
+    expect(api.updateProject).toHaveBeenCalledWith('existing-proj-id', {
+      title: 'Server Project',
+      code: 'graph TD\n ModifiedCode'
+    });
+    expect(project.saveStatus).toBe('saved');
+    expect(project.hasChanges).toBe(false);
+  });
 });

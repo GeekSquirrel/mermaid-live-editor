@@ -23,39 +23,44 @@
   import { Switch } from '$/components/ui/switch';
   import VersionSecurityToolbar from '$/components/VersionSecurityToolbar.svelte';
   import View from '$/components/View.svelte';
-  import type { EditorMode, Tab } from '$/types';
   import { shouldShowEditorChooser } from '$/util/migration/domainMigration';
   import { PanZoomState } from '$/util/panZoom';
   import { projectState } from '$/util/projectState.svelte';
-  import { validatedState, updateCodeStore, urls, inputState } from '$/util/state.svelte';
+  import { validatedState, urls, inputState } from '$/util/state.svelte';
   import { logEvent } from '$/util/stats';
   import { initHandler } from '$/util/util';
   import { onMount } from 'svelte';
   import CodeIcon from '~icons/custom/code';
   import BookmarkIcon from '~icons/material-symbols/bookmark-outline-rounded';
   import HistoryIcon from '~icons/material-symbols/history';
-  import GearIcon from '~icons/material-symbols/settings-outline-rounded';
   import { historyState, setMode } from '$/components/History/historyState.svelte';
 
   const panZoomState = new PanZoomState();
 
-  const tabSelectHandler = (tab: Tab) => {
-    const editorMode: EditorMode = tab.id === 'code' ? 'code' : 'config';
-    updateCodeStore({ editorMode });
-  };
+  let editorContainerRef = $state<HTMLDivElement>();
 
-  const editorTabs: Tab[] = [
-    {
-      icon: CodeIcon,
-      id: 'code',
-      title: 'Code'
-    },
-    {
-      icon: GearIcon,
-      id: 'config',
-      title: 'Config'
+  const handleWindowPointerDown = (event: PointerEvent) => {
+    if (!editorContainerRef) return;
+    const target = event.target as Node | null;
+    const isInsideEditor =
+      target &&
+      (editorContainerRef.contains(target) ||
+        (target instanceof Element &&
+          Boolean(target.closest('.monaco-editor') || target.closest('.monaco-menu-container'))));
+
+    if (isInsideEditor) {
+      return;
     }
-  ];
+
+    const activeEl = document.activeElement as HTMLElement | null;
+    if (activeEl && (editorContainerRef.contains(activeEl) || activeEl.closest('.monaco-editor'))) {
+      activeEl.blur();
+    }
+
+    if (projectState.hasChanges) {
+      void projectState.save();
+    }
+  };
 
   let width = $state(0);
   let isMobile = $derived(width < 640);
@@ -128,6 +133,8 @@
   });
 </script>
 
+<svelte:window onpointerdown={handleWindowPointerDown} />
+
 <div class="flex h-full flex-col overflow-hidden">
   {#snippet mobileToggle()}
     <div class="flex items-center gap-2">
@@ -183,16 +190,13 @@
         class="gap-4 p-2 pt-0 sm:gap-0 sm:p-6 sm:pt-0">
         <Resizable.Pane bind:this={editorPane} defaultSize={30} minSize={15}>
           <div class="flex h-full flex-col gap-4 sm:gap-6">
-            <Card
-              onselect={tabSelectHandler}
-              isOpen
-              tabs={editorTabs}
-              activeTabID={validatedState.current.editorMode}
-              isClosable={false}>
+            <Card isOpen title="Code" icon={{ component: CodeIcon }} isClosable={false}>
               {#snippet actions()}
                 <DiagramDocButton />
               {/snippet}
-              <Editor {isMobile} />
+              <div bind:this={editorContainerRef} class="h-full">
+                <Editor {isMobile} />
+              </div>
             </Card>
 
             <div class="group flex flex-wrap justify-between gap-4 sm:gap-6">
