@@ -3,7 +3,6 @@
   import { Button } from '$/components/ui/button';
   import { Separator } from '$/components/ui/separator';
   import type { PanZoomState } from '$/util/panZoom';
-  import { cn } from '$lib/utils';
   import BookmarkAddIcon from '~icons/material-symbols/bookmark-add-outline-rounded';
   import ExpandIcon from '~icons/material-symbols/open-in-full-rounded';
   import SaveIcon from '~icons/material-symbols/save-outline-rounded';
@@ -42,12 +41,11 @@
     </Button>
   {/if}
   {#if onSave || onBookmark}
-    <Separator orientation="vertical" class="opacity-50" />
+    <Separator orientation="vertical" class="h-5 min-h-0 w-px border-0 bg-current opacity-30" />
   {/if}
   <Button variant="ghost" size="icon" title="Reset view" onclick={() => panZoomState.reset()}>
     <ArrowsToCircleIcon />
   </Button>
-  <Separator orientation="vertical" class={cn('opacity-50', zoomClass)} />
   <Button
     variant="ghost"
     size="icon"
@@ -65,7 +63,7 @@
     <MagnifyingGlassPlusIcon />
   </Button>
   {#if fullScreenHref}
-    <Separator orientation="vertical" class={cn('opacity-50', zoomClass)} />
+    <Separator orientation="vertical" class="h-5 min-h-0 w-px border-0 bg-current opacity-30" />
     <Button variant="ghost" size="icon" title="Full Screen" href={fullScreenHref} target="_blank">
       <ExpandIcon />
     </Button>
