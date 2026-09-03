@@ -303,7 +303,11 @@ export const replaceInputState = (next: State): void => {
 
 export const initURLSubscription = (): void => {
   updateHash = debounce((serialized: string) => {
-    history.replaceState(undefined, '', `#${serialized}`);
+    history.replaceState(
+      typeof window !== 'undefined' ? window.history.state : undefined,
+      '',
+      `#${serialized}`
+    );
   }, 250);
   updateHash(validatedCurrent.serialized);
 };

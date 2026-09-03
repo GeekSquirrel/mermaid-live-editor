@@ -78,6 +78,12 @@
           <BookmarkIcon class="size-3.5" />
           Bookmarked
         </span>
+      {:else if projectState.bookmarkStatus === 'duplicate'}
+        <span
+          class="inline-flex animate-in items-center gap-1 rounded bg-amber-500/10 px-2 py-0.5 font-medium text-amber-600 transition-opacity duration-500 fade-in dark:text-amber-400">
+          <BookmarkIcon class="size-3.5" />
+          State already bookmarked
+        </span>
       {:else if projectState.bookmarkStatus === 'error'}
         <span
           class="inline-flex items-center gap-1 rounded bg-destructive/10 px-2 py-0.5 font-medium text-destructive transition-opacity duration-500"

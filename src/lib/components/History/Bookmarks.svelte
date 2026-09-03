@@ -1,22 +1,20 @@
 <script lang="ts">
   import Card from '$lib/components/Card/Card.svelte';
-  import type { HistoryEntry, HistoryType, State, Tab } from '$lib/types';
+  import type { HistoryEntry, State } from '$lib/types';
   import { notify, prompt } from '$lib/util/notify';
   import { serializeState } from '$lib/util/serde';
   import { inputState, replaceInputState } from '$lib/util/state.svelte';
   import { logEvent } from '$lib/util/stats';
   import dayjs from 'dayjs';
   import dayjsRelativeTime from 'dayjs/plugin/relativeTime';
-  import BookmarkIcon from '~icons/material-symbols/bookmark-outline-rounded';
   import BookmarkAddIcon from '~icons/material-symbols/bookmark-add-outline-rounded';
+  import BookmarkIcon from '~icons/material-symbols/bookmark-outline-rounded';
   import TrashAltIcon from '~icons/material-symbols/delete-outline-rounded';
   import DownloadIcon from '~icons/material-symbols/download-rounded';
   import EditIcon from '~icons/material-symbols/edit-outline-rounded';
+  import OpenInNewIcon from '~icons/material-symbols/open-in-new-rounded';
   import UndoIcon from '~icons/material-symbols/settings-backup-restore-rounded';
   import UploadIcon from '~icons/material-symbols/upload-rounded';
-  import HistoryIcon from '~icons/mdi/clock-outline';
-  import GitAltIcon from '~icons/mdi/git';
-  import OpenInNewIcon from '~icons/material-symbols/open-in-new-rounded';
   import { onMount } from 'svelte';
   import { Button } from '../ui/button';
   import { Separator } from '../ui/separator';
@@ -33,26 +31,6 @@
 
   dayjs.extend(dayjsRelativeTime);
 
-  const baseTabs: Tab[] = [
-    { id: 'manual', title: 'Bookmarks', icon: BookmarkIcon },
-    { id: 'auto', title: 'Timeline', icon: HistoryIcon }
-  ];
-  const loaderTab: Tab = { id: 'loader', title: 'Revisions', icon: GitAltIcon };
-
-  const tabs = $derived(
-    historyState.loaderEntries.length > 0 ? [loaderTab, ...baseTabs] : baseTabs
-  );
-
-  // Surface revisions once when they first appear; the user can switch away after.
-  let revisionsShown = false;
-  $effect(() => {
-    if (historyState.loaderEntries.length > 0 && !revisionsShown) {
-      revisionsShown = true;
-      setMode('loader');
-    }
-  });
-
-  // Inline rename state for a single entry.
   let editingId: string | null = $state(null);
   let editValue = $state('');
 
@@ -63,36 +41,24 @@
     editingId = null;
   };
 
-  const emptyMessage = $derived(
-    historyState.mode === 'auto'
-      ? 'No timeline snapshots yet.\nThe Timeline is saved automatically every minute.'
-      : 'No saved states yet.\nClick the Save button to bookmark the current diagram and restore it later.'
-  );
-
   onMount(() => {
+    setMode('manual');
     void loadSavedEntries();
   });
 
-  const tabSelectHandler = (tab: Tab) => {
-    setMode(tab.id as HistoryType);
-    if (tab.id === 'manual') {
-      void loadSavedEntries();
-    }
-  };
-
-  const downloadHistory = () => {
+  const downloadBookmarks = () => {
     const data = historyState.entries;
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `mermaid-history-${dayjs().format('YYYY-MM-DD-HHmmss')}.json`;
+    a.download = `mermaid-bookmarks-${dayjs().format('YYYY-MM-DD-HHmmss')}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    logEvent('history', { action: 'download' });
+    logEvent('history', { action: 'download', type: 'manual' });
   };
 
-  const uploadHistory = () => {
+  const uploadBookmarks = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'application/json';
@@ -108,72 +74,78 @@
     input.click();
   };
 
-  const saveHistory = () => {
+  const saveBookmark = () => {
     addManualEntry($state.snapshot(inputState));
   };
 
-  const clearAll = () => {
-    if (prompt('Clear all saved items?')) {
+  const clearAll = async () => {
+    if (await prompt('Are you sure you want to delete all bookmarks?')) {
       clearActive();
     }
   };
 
-  const restoreHistoryItem = (state: State): void => {
-    replaceInputState({ ...state, updateDiagram: true });
+  const restoreHistoryItem = (state: State) => {
+    replaceInputState(state);
+    logEvent('history', { action: 'restore', type: 'manual' });
   };
 
-  // Absolute editor URL for an entry, so the link can be opened in a new tab or copied.
   const entryUrl = (state: State): string =>
     `${window.location.origin}${window.location.pathname}#${serializeState(state)}`;
 
-  // Serialize each entry's URL once per change rather than per row on every render.
   const entriesWithUrl = $derived(
     historyState.entries.map((entry) => ({ ...entry, openUrl: entryUrl(entry.state) }))
   );
 </script>
 
-<Card onselect={tabSelectHandler} isOpen isClosable={false} {tabs} activeTabID={historyState.mode}>
+<Card
+  isOpen
+  isClosable={false}
+  title="Bookmarks"
+  icon={{ component: BookmarkIcon, class: 'size-4' }}>
   {#snippet actions()}
     <div class="flex items-center gap-2">
-      {#if historyState.mode !== 'auto'}
-        <Button
-          size="icon"
-          variant="ghost"
-          id="uploadHistory"
-          onclick={uploadHistory}
-          title="Upload history"><UploadIcon /></Button>
-      {/if}
+      <Button
+        size="icon"
+        variant="ghost"
+        id="uploadHistory"
+        onclick={uploadBookmarks}
+        title="Upload bookmarks">
+        <UploadIcon />
+      </Button>
       {#if historyState.entries.length > 0}
         <Button
           id="downloadHistory"
           size="icon"
           variant="ghost"
-          onclick={downloadHistory}
-          title="Download history"><DownloadIcon /></Button>
+          onclick={downloadBookmarks}
+          title="Download bookmarks">
+          <DownloadIcon />
+        </Button>
       {/if}
-      {#if historyState.mode !== 'auto'}
-        <Separator orientation="vertical" />
-        <Button
-          id="saveHistory"
-          size="icon"
-          variant="ghost"
-          onclick={saveHistory}
-          title="Bookmark current state"><BookmarkAddIcon /></Button>
-      {/if}
-      {#if historyState.mode !== 'loader'}
-        <Button
-          id="clearHistory"
-          size="icon"
-          variant="ghost"
-          class="hover:text-destructive"
-          onclick={clearAll}
-          title="Delete all saved states"><TrashAltIcon /></Button>
-      {/if}
+      <Separator orientation="vertical" />
+      <Button
+        id="saveHistory"
+        size="icon"
+        variant="ghost"
+        onclick={saveBookmark}
+        title="Bookmark current state">
+        <BookmarkAddIcon />
+      </Button>
+      <Button
+        id="clearHistory"
+        size="icon"
+        variant="ghost"
+        class="hover:text-destructive"
+        onclick={clearAll}
+        title="Delete all bookmarks">
+        <TrashAltIcon />
+      </Button>
     </div>
   {/snippet}
+
   <ul class="flex h-full flex-col gap-2 overflow-auto p-2" id="historyList">
     {#if entriesWithUrl.length > 0}
-      {#each entriesWithUrl as { id, state, time, name, url, type, openUrl } (id)}
+      {#each entriesWithUrl as { id, state, time, name, url, openUrl } (id)}
         <li class="flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <div class="flex min-w-0 flex-1 flex-col">
@@ -200,18 +172,16 @@
                     onblur={commitRename} />
                 {:else}
                   <span class="min-w-0 truncate" title={name}>{name}</span>
-                  {#if type !== 'loader'}
-                    <button
-                      type="button"
-                      class="shrink-0 opacity-50 hover:opacity-100"
-                      title="Rename"
-                      onclick={() => {
-                        editingId = id;
-                        editValue = name ?? '';
-                      }}>
-                      <EditIcon class="size-3.5" />
-                    </button>
-                  {/if}
+                  <button
+                    type="button"
+                    class="shrink-0 opacity-50 hover:opacity-100"
+                    title="Rename"
+                    onclick={() => {
+                      editingId = id;
+                      editValue = name ?? '';
+                    }}>
+                    <EditIcon class="size-3.5" />
+                  </button>
                 {/if}
               </div>
               <span class="text-xs whitespace-nowrap text-primary-foreground/30">
@@ -239,23 +209,24 @@
                 onclick={() => restoreHistoryItem(state)}>
                 <UndoIcon />
               </Button>
-              {#if type !== 'loader'}
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  class="hover:text-destructive"
-                  title="Delete this version"
-                  onclick={() => removeEntry(id)}>
-                  <TrashAltIcon />
-                </Button>
-              {/if}
+              <Button
+                size="icon"
+                variant="ghost"
+                class="hover:text-destructive"
+                title="Delete this version"
+                onclick={() => removeEntry(id)}>
+                <TrashAltIcon />
+              </Button>
             </div>
           </div>
           <Separator />
         </li>
       {/each}
     {:else}
-      <div class="m-2 text-center whitespace-pre-line">{emptyMessage}</div>
+      <div class="m-2 text-center whitespace-pre-line">
+        No bookmarks yet. Click the bookmark button to bookmark the current diagram and restore it
+        later.
+      </div>
     {/if}
   </ul>
 </Card>

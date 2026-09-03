@@ -112,6 +112,7 @@ export const addManualEntry = (
   projectId: string | null = currentProjectId
 ): boolean => {
   if (manual.length > 0 && stateKey(manual[0].state) === stateKey(state)) {
+    projectState.showBookmarkDuplicate();
     return false;
   }
   const entry = createEntry(state, 'manual', customName, projectId);

@@ -3,14 +3,15 @@
   import Card from '$/components/Card/Card.svelte';
   import DiagramDocButton from '$/components/DiagramDocumentationButton.svelte';
   import Editor from '$/components/Editor.svelte';
-  import History from '$/components/History/History.svelte';
+  import Bookmarks from '$/components/History/Bookmarks.svelte';
+  import Timeline from '$/components/History/Timeline.svelte';
   import {
     addManualEntry,
     loadSavedEntries,
     setCurrentProjectId,
     startAutoSave
   } from '$/components/History/historyState.svelte';
-  import { notify } from '$/util/notify';
+  import { afterNavigate } from '$app/navigation';
   import EditorChooserModal from '$/components/migration/EditorChooserModal.svelte';
   import Navbar from '$/components/Navbar.svelte';
   import PanZoomToolbar from '$/components/PanZoomToolbar.svelte';
@@ -71,6 +72,11 @@
     });
   });
 
+  afterNavigate(async () => {
+    await projectState.loadFromUrl();
+    setCurrentProjectId(projectState.id);
+  });
+
   $effect(() => {
     void inputState.code;
     projectState.notifyChange();
@@ -95,35 +101,21 @@
     setCurrentProjectId(currentId);
     const currentState = $state.snapshot(inputState);
     const title = projectState.title?.trim();
-    const added = addManualEntry(currentState, title || undefined, currentId);
-    if (added) {
-      notify('Diagram state bookmarked.');
-    } else {
-      notify('State already bookmarked.');
-      projectState.showBookmarked();
-    }
+    addManualEntry(currentState, title || undefined, currentId);
   };
 
-  let isHistoryOpen = $state(false);
+  let activePanel = $state<'bookmarks' | 'timeline' | null>(null);
 
   const toggleBookmarks = () => {
-    if (!isHistoryOpen) {
-      setMode('manual');
-      isHistoryOpen = true;
-    } else if (historyState.mode === 'manual') {
-      isHistoryOpen = false;
-    } else {
+    activePanel = activePanel === 'bookmarks' ? null : 'bookmarks';
+    if (activePanel === 'bookmarks') {
       setMode('manual');
     }
   };
 
   const toggleTimeline = () => {
-    if (!isHistoryOpen) {
-      setMode('auto');
-      isHistoryOpen = true;
-    } else if (historyState.mode === 'auto') {
-      isHistoryOpen = false;
-    } else {
+    activePanel = activePanel === 'timeline' ? null : 'timeline';
+    if (activePanel === 'timeline') {
       setMode('auto');
     }
   };
@@ -152,7 +144,7 @@
   <Navbar mobileToggle={isMobile ? mobileToggle : undefined}>
     <div class="relative inline-flex">
       <Button
-        variant={isHistoryOpen && historyState.mode === 'manual' ? 'secondary' : 'default'}
+        variant={activePanel === 'bookmarks' ? 'secondary' : 'default'}
         size="sm"
         class="gap-1.5"
         onclick={toggleBookmarks}
@@ -162,13 +154,13 @@
       </Button>
       {#if historyState.bookmarkCount > 0}
         <span
-          class="pointer-events-none absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-foreground shadow-sm">
+          class="pointer-events-none absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-foreground shadow-sm">
           {historyState.bookmarkCount}
         </span>
       {/if}
     </div>
     <Button
-      variant={isHistoryOpen && historyState.mode === 'auto' ? 'secondary' : 'default'}
+      variant={activePanel === 'timeline' ? 'secondary' : 'default'}
       size="sm"
       class="gap-1.5"
       onclick={toggleTimeline}
@@ -222,10 +214,15 @@
           <div class="absolute right-0 bottom-0"><VersionSecurityToolbar /></div>
           <div class="absolute bottom-0 left-0 sm:left-5"><SyncRoughToolbar /></div>
         </Resizable.Pane>
-        {#if isHistoryOpen}
+        {#if activePanel === 'bookmarks'}
           <Resizable.Handle class="ml-1 hidden opacity-0 sm:block" />
           <Resizable.Pane minSize={15} defaultSize={30} class="hidden h-full grow flex-col sm:flex">
-            <History />
+            <Bookmarks />
+          </Resizable.Pane>
+        {:else if activePanel === 'timeline'}
+          <Resizable.Handle class="ml-1 hidden opacity-0 sm:block" />
+          <Resizable.Pane minSize={15} defaultSize={30} class="hidden h-full grow flex-col sm:flex">
+            <Timeline />
           </Resizable.Pane>
         {/if}
       </Resizable.PaneGroup>

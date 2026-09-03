@@ -101,7 +101,7 @@ describe('ProjectState auto-save & lifecycle', () => {
     await project.loadFromUrl();
 
     // Simulate slow network update (takes 4s)
-    let resolveSlowUpdate: () => void;
+    let resolveSlowUpdate: (() => void) | undefined;
     vi.mocked(api.updateProject).mockImplementationOnce(
       () =>
         new Promise((resolve) => {
@@ -173,6 +173,12 @@ describe('ProjectState auto-save & lifecycle', () => {
 
     project.showBookmarked();
     expect(project.bookmarkStatus).toBe('bookmarked');
+
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(project.bookmarkStatus).toBe('idle');
+
+    project.showBookmarkDuplicate();
+    expect(project.bookmarkStatus).toBe('duplicate');
 
     await vi.advanceTimersByTimeAsync(3_000);
     expect(project.bookmarkStatus).toBe('idle');

@@ -3,6 +3,8 @@
   import { loadingState } from '$/util/loading.svelte';
   import { toggleDarkTheme } from '$/util/state.svelte';
   import { initHandler } from '$/util/util';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import { base } from '$app/paths';
   import { mode, ModeWatcher } from 'mode-watcher';
   import { onMount, type Snippet } from 'svelte';
@@ -20,6 +22,13 @@
       void initHandler();
     });
 
+    const handlePopState = () => {
+      if (window.location.pathname !== page.url.pathname) {
+        void goto(window.location.href);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register(`${base}/service-worker.js`, { scope: `${base}/` })
@@ -30,6 +39,10 @@
           console.log('Service worker registration failed, error:', error);
         });
     }
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
   });
 
   $effect(() => {

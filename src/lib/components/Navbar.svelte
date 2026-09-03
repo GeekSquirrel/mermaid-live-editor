@@ -29,7 +29,7 @@
   </div>
   <div
     id="menu"
-    class="hidden flex-nowrap items-center justify-between gap-3 overflow-hidden md:flex">
+    class="hidden flex-nowrap items-center justify-between gap-3 overflow-visible md:flex">
     {@render children?.()}
     <Button
       variant="ghost"

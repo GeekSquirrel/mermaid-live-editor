@@ -15,7 +15,7 @@ export class ProjectState {
   title = $state<string>('Untitled Project');
   saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
   errorMessage = $state<string | null>(null);
-  bookmarkStatus = $state<'idle' | 'bookmarked' | 'error'>('idle');
+  bookmarkStatus = $state<'idle' | 'bookmarked' | 'duplicate' | 'error'>('idle');
   bookmarkErrorMessage = $state<string | null>(null);
 
   private initialized = false;
@@ -38,6 +38,18 @@ export class ProjectState {
       clearTimeout(this.bookmarkTimer);
     }
     this.bookmarkStatus = 'bookmarked';
+    this.bookmarkErrorMessage = null;
+    this.bookmarkTimer = setTimeout(() => {
+      this.bookmarkStatus = 'idle';
+      this.bookmarkTimer = undefined;
+    }, 3_000);
+  }
+
+  showBookmarkDuplicate() {
+    if (this.bookmarkTimer) {
+      clearTimeout(this.bookmarkTimer);
+    }
+    this.bookmarkStatus = 'duplicate';
     this.bookmarkErrorMessage = null;
     this.bookmarkTimer = setTimeout(() => {
       this.bookmarkStatus = 'idle';
@@ -143,7 +155,8 @@ export class ProjectState {
 
         const newUrl = new SvelteURL(window.location.href);
         newUrl.searchParams.set('projectId', created.id);
-        window.history.replaceState({}, '', newUrl.toString());
+        const currentState = typeof window !== 'undefined' ? (window.history.state ?? {}) : {};
+        window.history.replaceState(currentState, '', newUrl.toString());
       }
 
       if (this.savingTimer) {
