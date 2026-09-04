@@ -1,17 +1,28 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { api, type PreviewTheme } from '$lib/services/api';
+  import { sha256Hex } from '$lib/util/hash';
   import { render } from '$lib/util/mermaid';
   import type { MermaidConfig } from 'mermaid';
   import { mode } from 'mode-watcher';
   import ErrorIcon from '~icons/material-symbols/error-outline-rounded';
   import LoadingIcon from '~icons/material-symbols/sync-rounded';
 
-  let { code, id }: { code: string; id: string } = $props();
+  let {
+    code,
+    id,
+    previewKind
+  }: { code: string; id: string; previewKind?: 'project' | 'bookmark' } = $props();
 
   let containerEl = $state<HTMLDivElement | null>(null);
   let error = $state<string | null>(null);
   let loading = $state(false);
   let svgContent = $state<string | null>(null);
+
+  let visible = false;
+  let generation = 0;
+
+  const themeOf = (): PreviewTheme => (mode.current === 'dark' ? 'dark' : 'light');
 
   const injectSvg = (node: HTMLDivElement, content: string | null) => {
     if (content) {
@@ -28,10 +39,42 @@
     };
   };
 
-  const renderPreview = async () => {
-    if (!code?.trim()) return;
+  /**
+   * Load the preview for the current theme: stored server-side SVG first,
+   * then fall back to live client rendering and backfill the server preview.
+   * A generation counter discards results from superseded runs (theme flips,
+   * re-entries) so stale async results never overwrite newer ones.
+   */
+  const loadFlow = async () => {
+    const gen = ++generation;
+    if (!code?.trim()) {
+      error = null;
+      loading = false;
+      svgContent = null;
+      return;
+    }
     loading = true;
     error = null;
+
+    const theme = themeOf();
+
+    if (previewKind) {
+      try {
+        const stored =
+          previewKind === 'project'
+            ? await api.getProjectPreview(id, theme)
+            : await api.getBookmarkPreview(id, theme);
+        if (gen !== generation) return;
+        if (stored) {
+          svgContent = stored;
+          loading = false;
+          return;
+        }
+      } catch {
+        // Server preview unavailable — fall through to live rendering
+      }
+    }
+
     try {
       const renderId =
         'preview-' +
@@ -41,14 +84,28 @@
       const config: MermaidConfig = {
         securityLevel: 'loose',
         startOnLoad: false,
-        theme: mode.current === 'dark' ? 'dark' : 'default'
+        theme: theme === 'dark' ? 'dark' : 'default'
       };
       const res = await render(config, code, renderId);
+      if (gen !== generation) return;
       svgContent = res.svg;
+      loading = false;
+
+      // Backfill the server preview for this theme so future visits skip
+      // live rendering. Fire-and-forget; failures are silently ignored.
+      if (previewKind) {
+        const codeHash = await sha256Hex(code);
+        if (gen === generation && codeHash) {
+          const dto = { theme, codeHash, svg: res.svg };
+          void (previewKind === 'project'
+            ? api.uploadProjectPreview(id, dto)
+            : api.uploadBookmarkPreview(id, dto));
+        }
+      }
     } catch (err) {
+      if (gen !== generation) return;
       error = err instanceof Error ? err.message : 'Syntax error';
       svgContent = null;
-    } finally {
       loading = false;
     }
   };
@@ -56,7 +113,8 @@
   onMount(() => {
     if (!containerEl) return;
     if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
-      void renderPreview();
+      visible = true;
+      void loadFlow();
       return;
     }
 
@@ -64,7 +122,8 @@
       (entries) => {
         if (entries[0]?.isIntersecting) {
           observer.disconnect();
-          void renderPreview();
+          visible = true;
+          void loadFlow();
         }
       },
       { rootMargin: '150px' }
@@ -75,6 +134,14 @@
     return () => {
       observer.disconnect();
     };
+  });
+
+  // Re-load when the color mode flips so previews match the active theme.
+  $effect(() => {
+    void mode.current;
+    if (visible) {
+      void loadFlow();
+    }
   });
 </script>
 

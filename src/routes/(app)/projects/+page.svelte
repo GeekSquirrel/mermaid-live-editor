@@ -155,7 +155,7 @@
             </div>
 
             <div class="my-2 min-h-0 flex-1 sm:my-3">
-              <ProjectCardPreview code={project.code} id={project.id} />
+              <ProjectCardPreview code={project.code} id={project.id} previewKind="project" />
             </div>
 
             <div

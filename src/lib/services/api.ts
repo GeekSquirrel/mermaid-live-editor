@@ -42,6 +42,15 @@ export interface ApiResponse<T = unknown> {
   };
 }
 
+export type PreviewTheme = 'light' | 'dark';
+
+export interface SavePreviewDto {
+  theme: PreviewTheme;
+  /** sha256 hex of the diagram code the preview was rendered from */
+  codeHash: string;
+  svg: string;
+}
+
 declare global {
   interface Window {
     APP_CONFIG?: {
@@ -64,7 +73,7 @@ export function getApiBaseUrl(): string {
   return url.replace(/\/+$/, '');
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+export function buildApiUrl(path: string): string {
   const baseUrl = getApiBaseUrl();
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   let fullUrl = `${baseUrl}${normalizedPath}`;
@@ -83,6 +92,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       fullUrl = `http://localhost:8080${fullUrl}`;
     }
   }
+
+  return fullUrl;
+}
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const fullUrl = buildApiUrl(path);
 
   const response = await fetch(fullUrl, {
     ...options,
@@ -104,6 +119,44 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
 
   return json.data as T;
+}
+
+type PreviewKind = 'projects' | 'history';
+
+/** Fetch the stored server-side preview SVG; null when missing or stale (404). */
+async function fetchPreview(
+  kind: PreviewKind,
+  id: string,
+  theme: PreviewTheme
+): Promise<string | null> {
+  const url = buildApiUrl(`/${kind}/${encodeURIComponent(id)}/preview.svg?theme=${theme}`);
+  const response = await fetch(url);
+  if (!response.ok) {
+    return null;
+  }
+  return response.text();
+}
+
+/** Uploads are deduplicated per resource+theme so a full grid of cards does not flood the backend. */
+const inFlightUploads = new Set<string>();
+
+async function uploadPreview(kind: PreviewKind, id: string, dto: SavePreviewDto): Promise<boolean> {
+  const key = `${kind}:${id}:${dto.theme}`;
+  if (inFlightUploads.has(key)) {
+    return false;
+  }
+  inFlightUploads.add(key);
+  try {
+    await request<{ saved: boolean }>(`/${kind}/${encodeURIComponent(id)}/preview`, {
+      method: 'PUT',
+      body: JSON.stringify(dto)
+    });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    inFlightUploads.delete(key);
+  }
 }
 
 export const api = {
@@ -142,6 +195,9 @@ export const api = {
       method: 'DELETE'
     }),
 
+  getBookmarkPreview: (id: string, theme: PreviewTheme): Promise<string | null> =>
+    fetchPreview('history', id, theme),
+
   getHistoryEntries: (type = 'manual', projectId?: string | null): Promise<HistoryEntry[]> => {
     let path = `/history?type=${encodeURIComponent(type)}`;
     if (projectId !== undefined) {
@@ -151,6 +207,9 @@ export const api = {
   },
 
   getProject: (id: string): Promise<Project> => request<Project>(`/projects/${id}`),
+
+  getProjectPreview: (id: string, theme: PreviewTheme): Promise<string | null> =>
+    fetchPreview('projects', id, theme),
 
   getProjects: (): Promise<Project[]> => request<Project[]>('/projects'),
 
@@ -164,5 +223,11 @@ export const api = {
     request<Project>(`/projects/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
-    })
+    }),
+
+  uploadBookmarkPreview: (id: string, dto: SavePreviewDto): Promise<boolean> =>
+    uploadPreview('history', id, dto),
+
+  uploadProjectPreview: (id: string, dto: SavePreviewDto): Promise<boolean> =>
+    uploadPreview('projects', id, dto)
 };

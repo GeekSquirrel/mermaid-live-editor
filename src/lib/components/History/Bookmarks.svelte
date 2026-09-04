@@ -1,5 +1,6 @@
 <script lang="ts">
   import Card from '$lib/components/Card/Card.svelte';
+  import ProjectCardPreview from '$lib/components/ProjectCardPreview.svelte';
   import type { HistoryEntry, State } from '$lib/types';
   import { notify, prompt } from '$lib/util/notify';
   import { serializeState } from '$lib/util/serde';
@@ -143,90 +144,102 @@
     </div>
   {/snippet}
 
-  <ul class="flex h-full flex-col gap-2 overflow-auto p-2" id="historyList">
+  <div class="h-full overflow-auto p-2" id="historyList">
     {#if entriesWithUrl.length > 0}
-      {#each entriesWithUrl as { id, state, time, name, url, openUrl } (id)}
-        <li class="flex flex-col gap-2">
-          <div class="flex items-center justify-between">
-            <div class="flex min-w-0 flex-1 flex-col">
-              <div class="flex min-w-0 items-center gap-1 overflow-hidden">
-                {#if url}
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener"
-                    title="Open revision in new tab"
-                    class="min-w-0 truncate text-blue-500 hover:underline">{name}</a>
-                {:else if editingId === id}
-                  <input
-                    class="min-w-0 flex-1 rounded border px-1 text-sm"
-                    bind:value={editValue}
-                    aria-label="Rename entry"
-                    onkeydown={(event) => {
-                      if (event.key === 'Enter') {
-                        commitRename();
-                      } else if (event.key === 'Escape') {
-                        editingId = null;
-                      }
-                    }}
-                    onblur={commitRename} />
-                {:else}
-                  <span class="min-w-0 truncate" title={name}>{name}</span>
-                  <button
-                    type="button"
-                    class="shrink-0 opacity-50 hover:opacity-100"
-                    title="Rename"
-                    onclick={() => {
-                      editingId = id;
-                      editValue = name ?? '';
-                    }}>
-                    <EditIcon class="size-3.5" />
-                  </button>
-                {/if}
-              </div>
-              <span class="text-xs whitespace-nowrap text-primary-foreground/30">
-                {new Date(time).toLocaleString()}
-              </span>
+      <div class="bookmarks-grid">
+        {#each entriesWithUrl as { id, state, time, name, url, openUrl } (id)}
+          <div
+            class="group flex flex-col rounded-lg border border-border bg-card p-2 transition-all hover:border-primary/50 hover:shadow-md">
+            <div class="h-28 shrink-0 overflow-hidden rounded-md border border-border/40">
+              <ProjectCardPreview code={state?.code ?? ''} {id} previewKind="bookmark" />
             </div>
 
-            <div class="flex items-center gap-2">
-              <span class="text-sm whitespace-nowrap text-primary-foreground/50">
-                {dayjs(time).fromNow()}
-              </span>
+            <div class="mt-2 flex min-w-0 items-center gap-1 overflow-hidden">
+              {#if url}
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener"
+                  title="Open revision in new tab"
+                  class="min-w-0 truncate text-sm text-blue-500 hover:underline">{name}</a>
+              {:else if editingId === id}
+                <input
+                  class="min-w-0 flex-1 rounded border px-1 text-sm"
+                  bind:value={editValue}
+                  aria-label="Rename entry"
+                  onkeydown={(event) => {
+                    if (event.key === 'Enter') {
+                      commitRename();
+                    } else if (event.key === 'Escape') {
+                      editingId = null;
+                    }
+                  }}
+                  onblur={commitRename} />
+              {:else}
+                <span class="min-w-0 flex-1 truncate text-sm" title={name}>{name}</span>
+                <button
+                  type="button"
+                  class="shrink-0 opacity-50 hover:opacity-100"
+                  title="Rename"
+                  onclick={() => {
+                    editingId = id;
+                    editValue = name ?? '';
+                  }}>
+                  <EditIcon class="size-3.5" />
+                </button>
+              {/if}
+            </div>
+            <span
+              class="mt-0.5 truncate text-xs text-muted-foreground"
+              title={new Date(time).toLocaleString()}>
+              {dayjs(time).fromNow()}
+            </span>
+
+            <div
+              class="mt-2 flex shrink-0 items-center justify-end gap-1 border-t border-border/50 pt-1.5">
               <Button
                 href={openUrl}
                 target="_blank"
                 rel="noopener"
                 size="icon"
                 variant="ghost"
+                class="size-7"
                 title="Open in new tab">
-                <OpenInNewIcon />
+                <OpenInNewIcon class="size-4" />
               </Button>
               <Button
                 size="icon"
                 variant="ghost"
+                class="size-7"
                 title="Restore this version"
                 onclick={() => restoreHistoryItem(state)}>
-                <UndoIcon />
+                <UndoIcon class="size-4" />
               </Button>
               <Button
                 size="icon"
                 variant="ghost"
-                class="hover:text-destructive"
+                class="size-7 hover:text-destructive"
                 title="Delete this version"
                 onclick={() => removeEntry(id)}>
-                <TrashAltIcon />
+                <TrashAltIcon class="size-4" />
               </Button>
             </div>
           </div>
-          <Separator />
-        </li>
-      {/each}
+        {/each}
+      </div>
     {:else}
       <div class="m-2 text-center whitespace-pre-line">
         No bookmarks yet. Click the bookmark button to bookmark the current diagram and restore it
         later.
       </div>
     {/if}
-  </ul>
+  </div>
 </Card>
+
+<style>
+  .bookmarks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 0.75rem;
+  }
+</style>
