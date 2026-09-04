@@ -13,12 +13,19 @@
   let divElement: HTMLDivElement | undefined = $state();
   let editor: monaco.editor.IStandaloneCodeEditor | undefined;
   let editorOptions = {
+    glyphMargin: false,
+    lineNumbersMinChars: 4,
     minimap: {
       enabled: false
     },
     overviewRulerLanes: 0,
-    glyphMargin: false,
-    lineNumbersMinChars: 4
+    scrollbar: {
+      horizontal: 'auto',
+      horizontalScrollbarSize: 8,
+      useShadows: false,
+      vertical: 'auto',
+      verticalScrollbarSize: 8
+    }
   } satisfies monaco.editor.IStandaloneEditorConstructionOptions;
   let currentText = '';
   let isUpdatingFromState = false;
@@ -117,3 +124,19 @@
 <div class="relative h-full grow overflow-hidden">
   <div bind:this={divElement} id="editor" class="h-full w-full"></div>
 </div>
+
+<style>
+  :global(.monaco-editor .monaco-scrollable-element > .scrollbar) {
+    background: transparent !important;
+  }
+  :global(.monaco-editor .monaco-scrollable-element > .scrollbar > .slider) {
+    background: var(--muted-foreground) !important;
+    border-radius: 9999px !important;
+    opacity: 0.35;
+    transition: opacity 0.2s ease;
+  }
+  :global(.monaco-editor .monaco-scrollable-element > .scrollbar > .slider:hover),
+  :global(.monaco-editor .monaco-scrollable-element > .scrollbar > .slider.active) {
+    opacity: 0.65;
+  }
+</style>

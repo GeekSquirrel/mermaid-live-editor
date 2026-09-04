@@ -158,13 +158,12 @@
   {/snippet}
 
   {#snippet editorTitle()}
-    <button
-      type="button"
+    <Button
+      variant={activeEditorTab === 'code' ? 'secondary' : 'ghost'}
+      size="sm"
       class={[
-        'flex cursor-pointer items-center gap-2 rounded px-2.5 py-1 text-sm font-medium transition-colors',
-        activeEditorTab === 'code'
-          ? 'bg-background font-semibold text-foreground shadow-sm'
-          : 'text-muted-foreground hover:text-foreground'
+        'h-8 gap-1.5 px-2.5 text-xs font-medium',
+        activeEditorTab === 'code' && 'bg-accent/15 font-semibold text-accent hover:bg-accent/20'
       ]}
       onclick={(e) => {
         e.stopPropagation();
@@ -172,7 +171,7 @@
       }}>
       <CodeIcon class="size-4" />
       Code
-    </button>
+    </Button>
   {/snippet}
 
   {#snippet editorActions()}

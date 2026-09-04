@@ -80,7 +80,7 @@
           type="text"
           placeholder="Search projects..."
           bind:value={searchQuery}
-          class="h-9 w-full rounded-md border border-input bg-background pr-3 pl-9 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none" />
+          class="h-9 w-full rounded-lg border border-border bg-card pr-3 pl-9 text-sm text-foreground shadow-xs transition-all placeholder:text-muted-foreground hover:border-primary/50 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none" />
       </div>
 
       <div class="flex items-center gap-2">
@@ -137,10 +137,10 @@
         {/if}
       </div>
     {:else}
-      <div class="flex flex-wrap gap-4">
+      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {#each filteredProjects as project (project.id)}
           <div
-            class="group flex w-full max-w-sm min-w-[280px] flex-1 flex-col justify-between rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-md">
+            class="group flex w-full max-w-md flex-col justify-between rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-md">
             <div>
               <div class="flex items-start justify-between gap-2">
                 <h2
