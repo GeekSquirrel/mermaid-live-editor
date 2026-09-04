@@ -3,7 +3,7 @@ set -e
 
 # Render nginx config, substituting only BACKEND_UPSTREAM so nginx's own
 # variables ($host, $uri, ...) pass through untouched.
-export BACKEND_UPSTREAM="${BACKEND_UPSTREAM:-backend:8080}"
+export BACKEND_UPSTREAM="${BACKEND_UPSTREAM:-http://backend:8080}"
 envsubst '$BACKEND_UPSTREAM' < /etc/nginx/templates/default.conf.template \
   > /etc/nginx/conf.d/default.conf
 

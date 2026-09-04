@@ -10,7 +10,7 @@ server {
   }
 
   # Proxy API requests to the backend. BACKEND_UPSTREAM is rendered by start.sh
-  # via envsubst (default: backend:8080, i.e. the backend service in the
+  # via envsubst (default: http://backend:8080, i.e. the backend service in the
   # Docker compose network).
   location /api/ {
     proxy_pass ${BACKEND_UPSTREAM}/api/;
