@@ -44,15 +44,17 @@
   </div>
   <div class="flex items-center gap-2 md:hidden">
     {@render mobileToggle?.()}
-    <Button
-      variant="ghost"
-      size="sm"
-      href="https://github.com/GeekSquirrel/mermaid-editor"
-      target="_blank"
-      rel="noopener noreferrer"
-      title="GitHub Repository"
-      aria-label="GitHub Repository">
-      <GithubIcon class="size-4" />
-    </Button>
+    {#if !mobileToggle}
+      <Button
+        variant="ghost"
+        size="sm"
+        href="https://github.com/GeekSquirrel/mermaid-editor"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="GitHub Repository"
+        aria-label="GitHub Repository">
+        <GithubIcon class="size-4" />
+      </Button>
+    {/if}
   </div>
 </nav>

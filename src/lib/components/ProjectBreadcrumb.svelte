@@ -43,7 +43,7 @@
 {#if isProjectsPage}
   <span class="text-sm font-semibold text-foreground sm:text-base">Projects</span>
 {:else}
-  <div class="flex items-center gap-2 overflow-hidden text-sm sm:text-base">
+  <div class="flex min-w-0 items-center gap-1.5 overflow-hidden text-xs sm:gap-2 sm:text-base">
     <a
       href={resolve('/projects', {})}
       class="font-medium text-muted-foreground transition-colors hover:text-foreground">
@@ -59,13 +59,13 @@
         onblur={commitTitle}
         onkeydown={handleKeyDown}
         placeholder="Untitled Project"
-        class="h-7 w-32 rounded border border-input bg-background px-2 py-0.5 text-xs font-medium focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none sm:w-48 sm:text-sm" />
+        class="xs:w-32 h-7 w-24 rounded border border-input bg-background px-2 py-0.5 text-xs font-medium focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none sm:w-48 sm:text-sm" />
     {:else}
       <button
         type="button"
         onclick={startEditing}
         title="Click to rename project"
-        class="max-w-[120px] truncate rounded px-1 py-0.5 text-left font-medium transition-colors hover:bg-muted/60 hover:text-accent sm:max-w-[200px]">
+        class="xs:max-w-[120px] max-w-[80px] truncate rounded px-1 py-0.5 text-left font-medium transition-colors hover:bg-muted/60 hover:text-accent sm:max-w-[200px]">
         {projectState.title || 'Untitled Project'}
       </button>
     {/if}

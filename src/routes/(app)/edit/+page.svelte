@@ -19,7 +19,6 @@
   import SyncRoughToolbar from '$/components/SyncRoughToolbar.svelte';
   import { Button } from '$/components/ui/button';
   import * as Resizable from '$/components/ui/resizable';
-  import { Switch } from '$/components/ui/switch';
   import VersionSecurityToolbar from '$/components/VersionSecurityToolbar.svelte';
   import View from '$/components/View.svelte';
   import { shouldShowEditorChooser } from '$/util/migration/domainMigration';
@@ -28,11 +27,13 @@
   import { validatedState, urls, inputState } from '$/util/state.svelte';
   import { logEvent } from '$/util/stats';
   import { initHandler } from '$/util/util';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import CodeIcon from '~icons/custom/code';
   import BookmarkIcon from '~icons/material-symbols/bookmark-outline-rounded';
   import HistoryIcon from '~icons/material-symbols/history';
   import ShapesIcon from '~icons/material-symbols/account-tree-outline-rounded';
+  import EditIcon from '~icons/material-symbols/edit-outline-rounded';
+  import ViewIcon from '~icons/material-symbols/visibility-outline-rounded';
   import { historyState, setMode } from '$/components/History/historyState.svelte';
 
   const panZoomState = new PanZoomState();
@@ -47,14 +48,24 @@
       target &&
       (editorContainerRef.contains(target) ||
         (target instanceof Element &&
-          Boolean(target.closest('.monaco-editor') || target.closest('.monaco-menu-container'))));
+          Boolean(
+            target.closest('.monaco-editor') ||
+            target.closest('.monaco-menu-container') ||
+            target.closest('.cm-editor') ||
+            target.closest('.cm-tooltip')
+          )));
 
     if (isInsideEditor) {
       return;
     }
 
     const activeEl = document.activeElement as HTMLElement | null;
-    if (activeEl && (editorContainerRef.contains(activeEl) || activeEl.closest('.monaco-editor'))) {
+    if (
+      activeEl &&
+      (editorContainerRef.contains(activeEl) ||
+        activeEl.closest('.monaco-editor') ||
+        activeEl.closest('.cm-editor'))
+    ) {
       activeEl.blur();
     }
 
@@ -63,10 +74,20 @@
     }
   };
 
-  let width = $state(0);
-  let isMobile = $derived(width < 640);
+  let width = $state(typeof window !== 'undefined' ? window.innerWidth : 0);
+  let isMobile = $derived(
+    width > 0 ? width < 768 : typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
   let isViewMode = $state(true);
   let showEditorChooser = $state(false);
+
+  $effect(() => {
+    if (isMobile && isViewMode) {
+      void tick().then(() => {
+        panZoomState.resize();
+      });
+    }
+  });
 
   onMount(async () => {
     await initHandler();
@@ -126,33 +147,50 @@
     }
   };
 
-  let editorPane: Resizable.Pane | undefined;
+  let editorPane = $state<Resizable.Pane>();
 </script>
 
 <svelte:window onpointerdown={handleWindowPointerDown} />
 
 <div class="flex h-full flex-col overflow-hidden">
   {#snippet mobileToggle()}
-    <div class="flex shrink-0 items-center gap-1.5 text-xs font-medium">
+    <div
+      class="inline-flex h-8 items-center rounded-lg bg-muted p-0.5 text-muted-foreground"
+      role="tablist"
+      aria-label="View mode">
       <button
         type="button"
-        class={!isViewMode ? 'font-semibold text-foreground' : 'text-muted-foreground'}
-        onclick={() => (isViewMode = false)}>
-        Edit
+        role="tab"
+        aria-selected={!isViewMode}
+        class={[
+          'inline-flex h-7 items-center justify-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all select-none',
+          !isViewMode
+            ? 'bg-background font-semibold text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground'
+        ]}
+        onclick={() => {
+          isViewMode = false;
+          logEvent('mobileViewToggle', { mode: 'edit' });
+        }}>
+        <EditIcon class="size-3.5" />
+        <span>Edit</span>
       </button>
-      <Switch
-        id="editorMode"
-        class="data-[state=checked]:bg-accent"
-        checked={isViewMode}
-        onCheckedChange={(checked) => {
-          isViewMode = checked;
-          logEvent('mobileViewToggle');
-        }} />
       <button
         type="button"
-        class={isViewMode ? 'font-semibold text-foreground' : 'text-muted-foreground'}
-        onclick={() => (isViewMode = true)}>
-        View
+        role="tab"
+        aria-selected={isViewMode}
+        class={[
+          'inline-flex h-7 items-center justify-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all select-none',
+          isViewMode
+            ? 'bg-background font-semibold text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground'
+        ]}
+        onclick={() => {
+          isViewMode = true;
+          logEvent('mobileViewToggle', { mode: 'view' });
+        }}>
+        <ViewIcon class="size-3.5" />
+        <span>View</span>
       </button>
     </div>
   {/snippet}
@@ -222,12 +260,13 @@
 
   <div class="flex flex-1 flex-col overflow-hidden" bind:clientWidth={width}>
     {#if isMobile}
-      <div
-        class={[
-          'flex h-full w-[200%] transition-transform duration-300',
-          isViewMode ? '-translate-x-1/2' : 'translate-x-0'
-        ]}>
-        <div class="flex h-full w-1/2 flex-col gap-4 overflow-y-auto p-2">
+      <div class="relative h-full w-full overflow-hidden">
+        <!-- Mobile Editor Pane -->
+        <div
+          class={[
+            'h-full w-full flex-col gap-4 overflow-y-auto p-2',
+            isViewMode ? 'hidden' : 'flex'
+          ]}>
           <Card isOpen titleSnippet={editorTitle} actions={editorActions} isClosable={false}>
             {#if activeEditorTab === 'code'}
               <div bind:this={editorContainerRef} class="h-full">
@@ -241,7 +280,13 @@
           </Card>
           <Actions />
         </div>
-        <div class="relative flex h-full w-1/2 flex-col overflow-hidden">
+
+        <!-- Mobile View Pane -->
+        <div
+          class={[
+            'relative h-full w-full flex-col overflow-hidden',
+            !isViewMode ? 'hidden' : 'flex'
+          ]}>
           <View {panZoomState} shouldShowGrid={validatedState.current.grid} />
           <div class="absolute top-0 right-0">
             <CanvasToolbar
