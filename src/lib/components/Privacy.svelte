@@ -38,7 +38,7 @@
           This is an open source project based on Mermaid Live Editor with full-stack persistent
           storage capabilities. Source code and updates are available on
           <a
-            href="https://github.com/GeekSquirrel/mermaid-editor"
+            href="https://github.com/GeekSquirrel/mermaid-vault"
             class="text-accent underline"
             target="_blank"
             rel="noopener noreferrer">GitHub</a

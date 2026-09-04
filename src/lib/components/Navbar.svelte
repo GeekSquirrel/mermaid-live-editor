@@ -34,7 +34,7 @@
     <Button
       variant="ghost"
       size="sm"
-      href="https://github.com/GeekSquirrel/mermaid-editor"
+      href="https://github.com/GeekSquirrel/mermaid-vault"
       target="_blank"
       rel="noopener noreferrer"
       title="GitHub Repository"
@@ -48,7 +48,7 @@
       <Button
         variant="ghost"
         size="sm"
-        href="https://github.com/GeekSquirrel/mermaid-editor"
+        href="https://github.com/GeekSquirrel/mermaid-vault"
         target="_blank"
         rel="noopener noreferrer"
         title="GitHub Repository"
