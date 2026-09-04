@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import Navbar from '$/components/Navbar.svelte';
+  import ProjectCardPreview from '$/components/ProjectCardPreview.svelte';
   import { Button } from '$/components/ui/button';
   import { api, type Project } from '$lib/services/api';
   import { onMount } from 'svelte';
@@ -69,40 +69,31 @@
 </script>
 
 <div class="flex h-full flex-col overflow-hidden bg-background text-foreground">
-  <Navbar>
-    <a
-      href={resolve('/edit', {})}
-      class="inline-flex items-center gap-1 text-sm font-medium hover:text-accent">
-      <AddIcon class="size-4" />
-      New Project
-    </a>
-  </Navbar>
+  <Navbar />
 
-  <main class="mx-auto w-full max-w-7xl flex-1 overflow-y-auto p-4 sm:p-8">
-    <div class="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight">My Projects</h1>
-        <p class="mt-1 text-sm text-muted-foreground">
-          Manage your Mermaid diagrams and chart projects saved in cloud storage
-        </p>
+  <main class="w-full flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+    <div class="mb-6 flex w-full items-center justify-between gap-4">
+      <div class="relative w-full max-w-xs sm:max-w-sm">
+        <SearchIcon
+          class="pointer-events-none absolute inset-y-0 left-3 my-auto size-4 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search projects..."
+          bind:value={searchQuery}
+          class="h-9 w-full rounded-md border border-input bg-background pr-3 pl-9 text-sm placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none" />
       </div>
 
-      <div class="flex w-full items-center gap-3 sm:w-auto">
-        <div class="relative flex-1 sm:w-64">
-          <SearchIcon
-            class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search projects..."
-            bind:value={searchQuery}
-            class="w-full rounded-md border border-input bg-background py-1.5 pr-3 pl-9 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none" />
-        </div>
-
-        <Button variant="outline" size="sm" onclick={loadProjects} title="Refresh list">
+      <div class="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          class="h-9 w-9 p-0"
+          onclick={loadProjects}
+          title="Refresh list">
           <RefreshIcon class="size-4" />
         </Button>
 
-        <Button variant="accent" size="sm" href="/edit" class="gap-1 whitespace-nowrap">
+        <Button variant="accent" size="sm" href="/edit" class="h-9 gap-1 whitespace-nowrap">
           <AddIcon class="size-4" />
           New Project
         </Button>
@@ -161,10 +152,7 @@
                 Updated {formatDate(project.updated_at)}
               </p>
 
-              <div
-                class="mt-3 line-clamp-3 h-16 overflow-hidden rounded bg-muted/50 p-2 font-mono text-xs text-muted-foreground">
-                {project.code || '(Empty diagram)'}
-              </div>
+              <ProjectCardPreview code={project.code} id={project.id} />
             </div>
 
             <div class="mt-4 flex items-center justify-end gap-2 border-t border-border/50 pt-3">

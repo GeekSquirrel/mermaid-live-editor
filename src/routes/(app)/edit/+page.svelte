@@ -1,8 +1,8 @@
 <script lang="ts">
   import Actions from '$/components/Actions.svelte';
   import Card from '$/components/Card/Card.svelte';
-  import DiagramDocButton from '$/components/DiagramDocumentationButton.svelte';
   import Editor from '$/components/Editor.svelte';
+  import SamplesPanel from '$/components/SamplesPanel.svelte';
   import Bookmarks from '$/components/History/Bookmarks.svelte';
   import Timeline from '$/components/History/Timeline.svelte';
   import {
@@ -15,7 +15,6 @@
   import EditorChooserModal from '$/components/migration/EditorChooserModal.svelte';
   import Navbar from '$/components/Navbar.svelte';
   import CanvasToolbar from '$/components/CanvasToolbar.svelte';
-  import Preset from '$/components/Preset.svelte';
   import Share from '$/components/Share.svelte';
   import SyncRoughToolbar from '$/components/SyncRoughToolbar.svelte';
   import { Button } from '$/components/ui/button';
@@ -33,10 +32,12 @@
   import CodeIcon from '~icons/custom/code';
   import BookmarkIcon from '~icons/material-symbols/bookmark-outline-rounded';
   import HistoryIcon from '~icons/material-symbols/history';
+  import ShapesIcon from '~icons/material-symbols/account-tree-outline-rounded';
   import { historyState, setMode } from '$/components/History/historyState.svelte';
 
   const panZoomState = new PanZoomState();
 
+  let activeEditorTab = $state<'code' | 'samples'>('code');
   let editorContainerRef = $state<HTMLDivElement>();
 
   const handleWindowPointerDown = (event: PointerEvent) => {
@@ -126,25 +127,33 @@
   };
 
   let editorPane: Resizable.Pane | undefined;
-  $effect(() => {
-    if (isMobile) {
-      editorPane?.resize(50);
-    }
-  });
 </script>
 
 <svelte:window onpointerdown={handleWindowPointerDown} />
 
 <div class="flex h-full flex-col overflow-hidden">
   {#snippet mobileToggle()}
-    <div class="flex items-center gap-2">
-      Edit <Switch
+    <div class="flex shrink-0 items-center gap-1.5 text-xs font-medium">
+      <button
+        type="button"
+        class={!isViewMode ? 'font-semibold text-foreground' : 'text-muted-foreground'}
+        onclick={() => (isViewMode = false)}>
+        Edit
+      </button>
+      <Switch
         id="editorMode"
         class="data-[state=checked]:bg-accent"
-        bind:checked={isViewMode}
-        onclick={() => {
+        checked={isViewMode}
+        onCheckedChange={(checked) => {
+          isViewMode = checked;
           logEvent('mobileViewToggle');
-        }} /> View
+        }} />
+      <button
+        type="button"
+        class={isViewMode ? 'font-semibold text-foreground' : 'text-muted-foreground'}
+        onclick={() => (isViewMode = true)}>
+        View
+      </button>
     </div>
   {/snippet}
 
@@ -179,28 +188,91 @@
   </Navbar>
 
   <div class="flex flex-1 flex-col overflow-hidden" bind:clientWidth={width}>
-    <div
-      class={[
-        'size-full',
-        isMobile && ['w-[200%] duration-300', isViewMode && '-translate-x-1/2']
-      ]}>
+    {#if isMobile}
+      <div
+        class={[
+          'flex h-full w-[200%] transition-transform duration-300',
+          isViewMode ? '-translate-x-1/2' : 'translate-x-0'
+        ]}>
+        <div class="flex h-full w-1/2 flex-col gap-4 overflow-y-auto p-2">
+          <Card
+            isOpen
+            title={activeEditorTab === 'code' ? 'Code' : 'Samples'}
+            icon={{ component: activeEditorTab === 'code' ? CodeIcon : ShapesIcon }}
+            isClosable={false}>
+            {#snippet actions()}
+              <Button
+                variant={activeEditorTab === 'samples' ? 'secondary' : 'ghost'}
+                size="sm"
+                class="h-8 gap-1.5 px-2.5 text-xs font-medium"
+                onclick={() => {
+                  activeEditorTab = activeEditorTab === 'samples' ? 'code' : 'samples';
+                }}>
+                <ShapesIcon class="size-4" />
+                Samples
+              </Button>
+            {/snippet}
+            {#if activeEditorTab === 'code'}
+              <div bind:this={editorContainerRef} class="h-full">
+                <Editor {isMobile} />
+              </div>
+            {:else}
+              <div class="h-full">
+                <SamplesPanel />
+              </div>
+            {/if}
+          </Card>
+          <Actions />
+        </div>
+        <div class="relative flex h-full w-1/2 flex-col overflow-hidden">
+          <View {panZoomState} shouldShowGrid={validatedState.current.grid} />
+          <div class="absolute top-0 right-0">
+            <CanvasToolbar
+              {panZoomState}
+              fullScreenHref={urls.current.view}
+              onSave={() => void handleSaveDiagram()}
+              onBookmark={handleBookmarkDiagram} />
+          </div>
+          <div class="absolute right-0 bottom-0"><VersionSecurityToolbar /></div>
+          <div class="absolute bottom-0 left-0"><SyncRoughToolbar /></div>
+        </div>
+      </div>
+    {:else}
       <Resizable.PaneGroup
         direction="horizontal"
         autoSaveId="liveEditor"
         class="gap-4 p-2 pt-0 sm:gap-0 sm:p-6 sm:pt-0">
         <Resizable.Pane bind:this={editorPane} defaultSize={30} minSize={15}>
           <div class="flex h-full flex-col gap-4 sm:gap-6">
-            <Card isOpen title="Code" icon={{ component: CodeIcon }} isClosable={false}>
+            <Card
+              isOpen
+              title={activeEditorTab === 'code' ? 'Code' : 'Samples'}
+              icon={{ component: activeEditorTab === 'code' ? CodeIcon : ShapesIcon }}
+              isClosable={false}>
               {#snippet actions()}
-                <DiagramDocButton />
+                <Button
+                  variant={activeEditorTab === 'samples' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  class="h-8 gap-1.5 px-2.5 text-xs font-medium"
+                  onclick={() => {
+                    activeEditorTab = activeEditorTab === 'samples' ? 'code' : 'samples';
+                  }}>
+                  <ShapesIcon class="size-4" />
+                  Samples
+                </Button>
               {/snippet}
-              <div bind:this={editorContainerRef} class="h-full">
-                <Editor {isMobile} />
-              </div>
+              {#if activeEditorTab === 'code'}
+                <div bind:this={editorContainerRef} class="h-full">
+                  <Editor {isMobile} />
+                </div>
+              {:else}
+                <div class="h-full">
+                  <SamplesPanel />
+                </div>
+              {/if}
             </Card>
 
-            <div class="group flex flex-wrap justify-between gap-4 sm:gap-6">
-              <Preset />
+            <div class="flex flex-col gap-4 sm:gap-6">
               <Actions />
             </div>
           </div>
@@ -230,7 +302,7 @@
           </Resizable.Pane>
         {/if}
       </Resizable.PaneGroup>
-    </div>
+    {/if}
   </div>
 </div>
 

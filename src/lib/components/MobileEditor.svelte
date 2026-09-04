@@ -46,11 +46,23 @@
             }
           }),
           EditorView.theme({
-            '&.cm-focused': {
-              outline: 'none'
+            '& .cm-activeLineGutter': {
+              backgroundColor: 'var(--muted)',
+              color: 'var(--foreground)'
+            },
+            '& .cm-gutterElement': {
+              color: 'inherit'
+            },
+            '& .cm-gutters': {
+              backgroundColor: 'var(--background)',
+              borderRight: '1px solid var(--border)',
+              color: 'var(--muted-foreground)'
             },
             '&.cm-editor': {
               height: '100%'
+            },
+            '&.cm-focused': {
+              outline: 'none'
             },
             '&.cm-scroller': {
               overflow: 'auto'
