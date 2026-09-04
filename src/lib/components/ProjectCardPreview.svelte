@@ -80,7 +80,7 @@
 
 <div
   bind:this={containerEl}
-  class="relative mt-3 flex h-48 w-full items-center justify-center overflow-hidden rounded-md border border-border/40 bg-muted/20 p-2 sm:h-56">
+  class="relative flex size-full items-center justify-center overflow-hidden rounded-md border border-border/40 bg-muted/20 p-2">
   {#if !code?.trim()}
     <span class="text-xs text-muted-foreground italic">(Empty diagram)</span>
   {:else if error}

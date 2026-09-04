@@ -137,29 +137,33 @@
         {/if}
       </div>
     {:else}
-      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+      <div class="projects-grid">
         {#each filteredProjects as project (project.id)}
           <div
-            class="group flex w-full max-w-md flex-col justify-between rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-md">
-            <div>
-              <div class="flex items-start justify-between gap-2">
+            class="group flex aspect-square w-full flex-col justify-between rounded-lg border border-border bg-card p-3.5 transition-all hover:border-primary/50 hover:shadow-md sm:p-4">
+            <div class="flex shrink-0 items-start justify-between gap-2">
+              <div class="min-w-0 flex-1">
                 <h2
-                  class="line-clamp-1 font-semibold text-card-foreground group-hover:text-primary">
+                  class="truncate font-semibold text-card-foreground group-hover:text-primary"
+                  title={project.title || 'Untitled Project'}>
                   {project.title || 'Untitled Project'}
                 </h2>
+                <p class="mt-0.5 text-xs text-muted-foreground">
+                  Updated {formatDate(project.updated_at)}
+                </p>
               </div>
-              <p class="mt-1 text-xs text-muted-foreground">
-                Updated {formatDate(project.updated_at)}
-              </p>
+            </div>
 
+            <div class="my-2 min-h-0 flex-1 sm:my-3">
               <ProjectCardPreview code={project.code} id={project.id} />
             </div>
 
-            <div class="mt-4 flex items-center justify-end gap-2 border-t border-border/50 pt-3">
+            <div
+              class="flex shrink-0 items-center justify-end gap-2 border-t border-border/50 pt-2.5 sm:pt-3">
               <Button
                 variant="destructive"
                 size="sm"
-                class="h-8 px-2 text-xs"
+                class="h-7 px-2 text-xs sm:h-8"
                 onclick={() => handleDelete(project)}>
                 <DeleteIcon class="mr-1 size-3.5" />
                 Delete
@@ -167,7 +171,7 @@
               <Button
                 variant="default"
                 size="sm"
-                class="h-8 gap-1 px-3 text-xs"
+                class="h-7 gap-1 px-2.5 text-xs sm:h-8 sm:px-3"
                 href={`/edit?projectId=${project.id}`}>
                 <OpenIcon class="size-3.5" />
                 Open Editor
@@ -179,3 +183,42 @@
     {/if}
   </main>
 </div>
+
+<style>
+  .projects-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .projects-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .projects-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1280px) and (orientation: landscape) {
+    .projects-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1536px) and (orientation: landscape) {
+    .projects-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 900px) and (orientation: portrait) {
+    .projects-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+</style>
