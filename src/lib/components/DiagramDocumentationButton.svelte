@@ -19,72 +19,58 @@
       code: '/syntax/c4.html'
     },
     class: {
-      code: '/syntax/classDiagram.html',
-      config: '/syntax/classDiagram.html#configuration'
+      code: '/syntax/classDiagram.html'
     },
     er: {
-      code: '/syntax/entityRelationshipDiagram.html',
-      config: '/syntax/entityRelationshipDiagram.html#styling'
+      code: '/syntax/entityRelationshipDiagram.html'
     },
     flowchart: {
-      code: '/syntax/flowchart.html',
-      config: '/syntax/flowchart.html#configuration'
+      code: '/syntax/flowchart.html'
     },
     gantt: {
-      code: '/syntax/gantt.html',
-      config: '/syntax/gantt.html#configuration'
+      code: '/syntax/gantt.html'
     },
     gitGraph: {
-      code: '/syntax/gitgraph.html',
-      config: '/syntax/gitgraph.html#gitgraph-specific-configuration-options'
+      code: '/syntax/gitgraph.html'
     },
     journey: {
       code: '/syntax/userJourney.html'
     },
     kanban: {
-      code: '/syntax/kanban.html',
-      config: '/syntax/kanban.html#configuration-options'
+      code: '/syntax/kanban.html'
     },
     mindmap: {
       code: '/syntax/mindmap.html'
     },
     packet: {
-      code: '/syntax/packet.html',
-      config: '/config/schema-docs/config-defs-packet-diagram-config.html'
+      code: '/syntax/packet.html'
     },
     pie: {
-      code: '/syntax/pie.html',
-      config: '/syntax/pie.html#configuration'
+      code: '/syntax/pie.html'
     },
     quadrantChart: {
-      code: '/syntax/quadrantChart.html',
-      config: '/syntax/quadrantChart.html#chart-configurations'
+      code: '/syntax/quadrantChart.html'
     },
     requirement: {
       code: '/syntax/requirementDiagram.html'
     },
     sankey: {
-      code: '/syntax/sankey.html',
-      config: '/syntax/sankey.html#configuration'
+      code: '/syntax/sankey.html'
     },
     sequence: {
-      code: '/syntax/sequenceDiagram.html',
-      config: '/syntax/sequenceDiagram.html#configuration'
+      code: '/syntax/sequenceDiagram.html'
     },
     stateDiagram: {
       code: '/syntax/stateDiagram.html'
     },
     timeline: {
-      code: '/syntax/timeline.html',
-      config: '/syntax/timeline.html#themes'
+      code: '/syntax/timeline.html'
     },
     treemap: {
-      code: '/syntax/treemap.html',
-      config: '/syntax/treemap.html#configuration-options'
+      code: '/syntax/treemap.html'
     },
     xychart: {
-      code: '/syntax/xyChart.html',
-      config: '/syntax/xyChart.html#chart-configurations'
+      code: '/syntax/xyChart.html'
     },
     zenuml: {
       code: '/syntax/zenuml.html'
@@ -92,15 +78,15 @@
   } as const satisfies DocumentationConfig;
 
   const doc = $derived.by(() => {
-    const { editorMode, diagramType } = validatedState.current;
+    const { diagramType } = validatedState.current;
     if (!diagramType) {
       return { key: '', url: docURLBase };
     }
     const key = standardizeDiagramType(diagramType);
-    const docConfig: { code: string; config?: string } = docMap[key as keyof typeof docMap] ?? {
+    const docConfig: { code: string } = docMap[key as keyof typeof docMap] ?? {
       code: ''
     };
-    const url = docURLBase + (docConfig[editorMode] ?? docConfig.code ?? '');
+    const url = docURLBase + (docConfig.code ?? '');
     return { key, url };
   });
 </script>

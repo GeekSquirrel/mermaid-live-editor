@@ -9,7 +9,6 @@ import {
   toggleDarkTheme,
   updateCode,
   updateCodeStore,
-  updateConfig,
   verifyState
 } from './state.svelte';
 
@@ -36,7 +35,6 @@ describe('update functions called from effects', () => {
   const cases: [string, () => void][] = [
     ['updateCodeStore', () => updateCodeStore({})],
     ['updateCode', () => updateCode('graph TD\n inside-effect')],
-    ['updateConfig', () => updateConfig('{"theme":"default"}')],
     ['toggleDarkTheme', () => toggleDarkTheme(false)],
     ['replaceInputState', () => replaceInputState({ ...defaultState })],
     ['verifyState', () => verifyState()],
@@ -48,7 +46,6 @@ describe('update functions called from effects', () => {
     try {
       expect(counter.runs()).toBe(1);
       updateCode('graph TD\n external-change');
-      updateConfig('{"theme":"forest"}');
       updateCodeStore({ pan: { x: 1, y: 2 } });
       flushSync();
       expect(counter.runs()).toBe(1);

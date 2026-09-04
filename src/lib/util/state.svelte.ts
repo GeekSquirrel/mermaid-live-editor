@@ -42,7 +42,6 @@ export const inputState: Readonly<State> = input;
 
 const validatedStateOf = (state: State, serialized: string): ValidatedState => ({
   ...state,
-  editorMode: state.editorMode ?? 'code',
   error: undefined,
   errorMarkers: [],
   serialized
@@ -263,10 +262,6 @@ export const updateCode = (
     state.code = code;
     state.updateDiagram = updateDiagram;
   });
-};
-
-export const updateConfig = (config: string): void => {
-  updateCodeStore({ mermaid: config });
 };
 
 export const toggleDarkTheme = (dark: boolean): void => {

@@ -24,6 +24,8 @@ export interface Tab {
 
 export interface State {
   code: string;
+  // Baseline mermaid config passed to mermaid.initialize(); diagrams may also
+  // declare YAML frontmatter inside `code`, which overrides same-named keys.
   mermaid: string;
   updateDiagram: boolean;
   rough: boolean;
@@ -31,14 +33,12 @@ export interface State {
   renderCount?: number;
   panZoom?: boolean;
   grid?: boolean;
-  editorMode?: EditorMode;
   pan?: { x: number; y: number };
   zoom?: number;
   loader?: LoaderConfig;
 }
 
 export interface ValidatedState extends State {
-  editorMode: EditorMode;
   diagramType?: string;
   error?: Error;
   errorMarkers: MarkerData[];
@@ -89,11 +89,8 @@ export type DocumentationConfig = Record<
   string,
   {
     code: string;
-    config?: string;
   }
 >;
-
-export type EditorMode = 'code' | 'config';
 
 export type Loader = (url: string) => Promise<State>;
 export type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
