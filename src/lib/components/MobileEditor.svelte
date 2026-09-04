@@ -9,6 +9,7 @@
   import { vsCodeLight } from '@fsegurai/codemirror-theme-vscode-light';
   import { basicSetup } from 'codemirror';
   import { mode } from 'mode-watcher';
+  import { projectState } from '$lib/util/projectState.svelte';
   import { onMount } from 'svelte';
 
   let editorView: EditorView | undefined;
@@ -35,6 +36,13 @@
           basicSetup,
           yamlFrontmatter({ content: markdown() }),
           themeCompartment.of([]),
+          EditorView.domEventHandlers({
+            blur() {
+              if (projectState.hasChanges) {
+                void projectState.save();
+              }
+            }
+          }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
               const newText = update.state.doc.toString();

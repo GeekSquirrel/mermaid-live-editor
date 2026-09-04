@@ -256,4 +256,28 @@ describe('ProjectState auto-save & lifecycle', () => {
     await vi.advanceTimersByTimeAsync(10_000);
     expect(project.saveStatus).toBe('idle');
   });
+
+  it('saves empty code when editor code is cleared and save is triggered', async () => {
+    window.history.replaceState(null, '', '/edit?projectId=existing-proj-id');
+    await project.loadFromUrl();
+
+    expect(project.hasChanges).toBe(false);
+
+    // User clears code in editor
+    updateCode('');
+    expect(project.hasChanges).toBe(true);
+
+    await project.save();
+
+    expect(api.updateProject).toHaveBeenCalledWith('existing-proj-id', {
+      title: 'Server Project',
+      code: ''
+    });
+    expect(project.saveStatus).toBe('saved');
+    expect(project.lastSavedCode).toBe('');
+    expect(project.hasChanges).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(project.saveStatus).toBe('idle');
+  });
 });

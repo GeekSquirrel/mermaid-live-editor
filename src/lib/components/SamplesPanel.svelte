@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Button } from '$/components/ui/button';
   import { getSampleDiagrams, type SampleExample } from '$/util/mermaid';
-  import { updateCode } from '$lib/util/state.svelte';
+  import { inputState, updateCode } from '$lib/util/state.svelte';
   import { projectState } from '$lib/util/projectState.svelte';
   import { logEvent } from '$lib/util/stats';
 
@@ -61,6 +61,13 @@ architecture-beta
 
   const samples = { ...getSampleDiagrams(), ...extras };
 
+  const normalizeCode = (code: string | undefined): string =>
+    (code ?? '').replace(/\r\n/g, '\n').trim();
+
+  const isCurrentSample = (exampleCode: string): boolean => {
+    return normalizeCode(exampleCode) === normalizeCode(inputState.code);
+  };
+
   const loadSampleDiagram = (diagramType: string, example: SampleExample): void => {
     updateCode(example.code, {
       resetPanZoom: true,
@@ -97,19 +104,27 @@ architecture-beta
       </h3>
       <div class="flex flex-wrap gap-2">
         {#if examples.length === 1}
+          {@const active = isCurrentSample(examples[0].code)}
           <Button
-            variant="secondary"
+            variant={active ? 'accent' : 'secondary'}
             size="sm"
-            class="h-7 px-2.5 text-xs font-medium"
+            class={[
+              'h-7 px-2.5 text-xs font-medium transition-all',
+              active && 'font-semibold shadow-sm ring-1 ring-accent'
+            ]}
             onclick={() => loadSampleDiagram(diagramType, examples[0])}>
             Basic {diagramType}
           </Button>
         {:else}
           {#each examples as example (example.title)}
+            {@const active = isCurrentSample(example.code)}
             <Button
-              variant="secondary"
+              variant={active ? 'accent' : 'secondary'}
               size="sm"
-              class="h-7 px-2.5 text-xs font-medium"
+              class={[
+                'h-7 px-2.5 text-xs font-medium transition-all',
+                active && 'font-semibold shadow-sm ring-1 ring-accent'
+              ]}
               onclick={() => loadSampleDiagram(diagramType, example)}>
               {example.title}
             </Button>

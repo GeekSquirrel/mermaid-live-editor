@@ -6,6 +6,7 @@
   import { mode } from 'mode-watcher';
   import * as monaco from 'monaco-editor';
   import monacoEditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+  import { projectState } from '$lib/util/projectState.svelte';
   import { onMount } from 'svelte';
 
   const { onUpdate }: EditorProps = $props();
@@ -64,11 +65,17 @@
 
     editor.onDidChangeModelContent(({ isFlush }) => {
       const newText = editor?.getValue();
-      if (!newText || currentText === newText || isFlush || isUpdatingFromState) {
+      if (newText === undefined || currentText === newText || isFlush || isUpdatingFromState) {
         return;
       }
       currentText = newText;
       onUpdate(currentText);
+    });
+
+    editor.onDidBlurEditorText(() => {
+      if (projectState.hasChanges) {
+        void projectState.save();
+      }
     });
 
     applyEditorTheme(mode.current);

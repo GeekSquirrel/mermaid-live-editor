@@ -126,7 +126,7 @@ export class ProjectState {
     this.debouncedSave.cancel();
 
     const currentCode = inputState.code;
-    if (!currentCode) return;
+    if (currentCode === undefined || currentCode === null) return;
 
     if (this.savingTimer) {
       clearTimeout(this.savingTimer);
