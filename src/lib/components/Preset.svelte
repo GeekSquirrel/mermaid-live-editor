@@ -4,6 +4,7 @@
   import * as Popover from '$/components/ui/popover';
   import { getSampleDiagrams, type SampleExample } from '$/util/mermaid';
   import { updateCode } from '$lib/util/state.svelte';
+  import { projectState } from '$lib/util/projectState.svelte';
   import { logEvent } from '$lib/util/stats';
   import { cn } from '$lib/utils';
   import ShapesIcon from '~icons/material-symbols/account-tree-outline-rounded';
@@ -50,6 +51,7 @@
       updateDiagram: true
     });
     logEvent('loadSampleDiagram', { diagramType, exampleTitle: example.title });
+    void projectState.save({ silent: true });
   };
 
   const mainDiagrams = [

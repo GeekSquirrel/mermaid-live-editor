@@ -24,6 +24,8 @@ export class ProjectState {
   debouncedSave: ReturnType<typeof debounce>;
   private savingTimer?: ReturnType<typeof setTimeout>;
   private bookmarkTimer?: ReturnType<typeof setTimeout>;
+  private savedTimer?: ReturnType<typeof setTimeout>;
+  private errorTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
     this.debouncedSave = debounce(() => void this.save(), AUTO_SAVE_DEBOUNCE_MS);
@@ -60,10 +62,16 @@ export class ProjectState {
   showBookmarkError(message = 'Failed to save bookmark') {
     if (this.bookmarkTimer) {
       clearTimeout(this.bookmarkTimer);
-      this.bookmarkTimer = undefined;
     }
     this.bookmarkStatus = 'error';
     this.bookmarkErrorMessage = message;
+    this.bookmarkTimer = setTimeout(() => {
+      if (this.bookmarkStatus === 'error') {
+        this.bookmarkStatus = 'idle';
+        this.bookmarkErrorMessage = null;
+      }
+      this.bookmarkTimer = undefined;
+    }, 3_000);
   }
 
   async loadFromUrl() {
@@ -124,10 +132,22 @@ export class ProjectState {
       clearTimeout(this.savingTimer);
       this.savingTimer = undefined;
     }
+    if (this.savedTimer) {
+      clearTimeout(this.savedTimer);
+      this.savedTimer = undefined;
+    }
+    if (this.errorTimer) {
+      clearTimeout(this.errorTimer);
+      this.errorTimer = undefined;
+    }
 
     const isSilent = Boolean(options.silent);
 
-    if (!isSilent) {
+    if (isSilent) {
+      // 静默保存立即同步已保存标记，避免响应式触发 notifyChange 再次调度非静默自动保存
+      this.lastSavedCode = currentCode;
+      this.lastSavedTitle = this.title;
+    } else {
       this.errorMessage = null;
       // 当保存过程小于3秒时，不显示 saving，直接在成功后显示 saved；超过3秒才显示 saving
       this.savingTimer = setTimeout(() => {
@@ -166,6 +186,12 @@ export class ProjectState {
 
       if (!isSilent) {
         this.saveStatus = 'saved';
+        this.savedTimer = setTimeout(() => {
+          if (this.saveStatus === 'saved') {
+            this.saveStatus = 'idle';
+          }
+          this.savedTimer = undefined;
+        }, 3_000);
       }
     } catch (err) {
       console.error('Failed to save project:', err);
@@ -173,8 +199,24 @@ export class ProjectState {
         clearTimeout(this.savingTimer);
         this.savingTimer = undefined;
       }
+      if (this.savedTimer) {
+        clearTimeout(this.savedTimer);
+        this.savedTimer = undefined;
+      }
+      if (isSilent) {
+        this.lastSavedCode = '';
+      }
       this.saveStatus = 'error';
       this.errorMessage = err instanceof Error ? err.message : 'Failed to save diagram';
+      this.errorTimer = setTimeout(() => {
+        if (this.saveStatus === 'error') {
+          this.saveStatus = 'idle';
+          this.errorMessage = null;
+        }
+        this.errorTimer = undefined;
+      }, 3_000);
+    } finally {
+      this.debouncedSave.cancel();
     }
   }
 
@@ -184,6 +226,15 @@ export class ProjectState {
     const currentCode = inputState.code;
     if (currentCode === this.lastSavedCode && this.title === this.lastSavedTitle) {
       return;
+    }
+
+    if (this.savedTimer) {
+      clearTimeout(this.savedTimer);
+      this.savedTimer = undefined;
+    }
+    if (this.errorTimer) {
+      clearTimeout(this.errorTimer);
+      this.errorTimer = undefined;
     }
 
     // When user edits (new unsaved changes), the prompt disappears

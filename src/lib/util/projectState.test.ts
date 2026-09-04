@@ -186,9 +186,13 @@ describe('ProjectState auto-save & lifecycle', () => {
     project.showBookmarkError('Failed to save');
     expect(project.bookmarkStatus).toBe('error');
     expect(project.bookmarkErrorMessage).toBe('Failed to save');
+
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(project.bookmarkStatus).toBe('idle');
+    expect(project.bookmarkErrorMessage).toBeNull();
   });
 
-  it('triggers immediate save and updates saveStatus to saved when saving unsaved changes', async () => {
+  it('triggers immediate save and updates saveStatus to saved when saving unsaved changes, fading out after 3s', async () => {
     window.history.replaceState(null, '', '/edit?projectId=existing-proj-id');
     await project.loadFromUrl();
 
@@ -207,5 +211,49 @@ describe('ProjectState auto-save & lifecycle', () => {
     });
     expect(project.saveStatus).toBe('saved');
     expect(project.hasChanges).toBe(false);
+
+    // After 3s, saved status fades out to idle
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(project.saveStatus).toBe('idle');
+  });
+
+  it('handles save error status and 3s fadeout', async () => {
+    window.history.replaceState(null, '', '/edit?projectId=error-proj-id');
+    await project.loadFromUrl();
+
+    vi.mocked(api.updateProject).mockRejectedValueOnce(new Error('Network failure'));
+    updateCode('graph TD\n ErrorCode');
+
+    await project.save();
+    expect(project.saveStatus).toBe('error');
+    expect(project.errorMessage).toBe('Network failure');
+
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(project.saveStatus).toBe('idle');
+    expect(project.errorMessage).toBeNull();
+  });
+
+  it('silently saves when switching sample diagram, without showing saving or saved', async () => {
+    window.history.replaceState(null, '', '/edit?projectId=sample-proj-id');
+    await project.loadFromUrl();
+
+    // User switches to a sample diagram
+    const sampleCode = 'architecture-beta\n  service db(database)[Database]';
+    updateCode(sampleCode);
+    // Silent save triggered
+    await project.save({ silent: true });
+
+    expect(api.updateProject).toHaveBeenCalledWith('sample-proj-id', {
+      title: 'Server Project',
+      code: sampleCode
+    });
+    // Remains idle throughout
+    expect(project.saveStatus).toBe('idle');
+    expect(project.lastSavedCode).toBe(sampleCode);
+
+    // Even if notifyChange is triggered, no debounced save should be scheduled
+    project.notifyChange();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(project.saveStatus).toBe('idle');
   });
 });
