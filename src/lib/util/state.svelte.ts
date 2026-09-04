@@ -54,8 +54,6 @@ let validatedCurrent = $state.raw<ValidatedState>(
   validatedStateOf(initialState, serializeState(initialState))
 );
 
-let lastDiagramType = '';
-
 const processState = async (state: State) => {
   const processed = validatedStateOf(state, '');
   // No changes should be done to fields part of `state`.
@@ -63,11 +61,6 @@ const processState = async (state: State) => {
     processed.serialized = serializeState(state);
     const { diagramType } = await parse(state.code);
     processed.diagramType = diagramType;
-    if (lastDiagramType === 'zenuml' && diagramType !== lastDiagramType) {
-      // Temp Hack to refresh page after displaying ZenUML.
-      setTimeout(() => window.location.reload(), 500);
-    }
-    lastDiagramType = diagramType;
   } catch (error) {
     processed.error = error as Error;
     errorDebug();
