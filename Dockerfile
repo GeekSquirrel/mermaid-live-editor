@@ -1,4 +1,4 @@
-FROM node:24-alpine AS mermaid-live-editor-dependencies
+FROM node:24-alpine AS mermaid-vault-frontend-dependencies
 
 RUN apk --no-cache add build-base git python3 && \
     rm -rf /var/cache/apk/*
@@ -12,7 +12,7 @@ COPY ./pnpm-lock.yaml .
 
 RUN pnpm install
 
-FROM mermaid-live-editor-dependencies AS mermaid-live-editor-builder
+FROM mermaid-vault-frontend-dependencies AS mermaid-vault-frontend-builder
 
 ARG MERMAID_RENDERER_URL
 ARG MERMAID_KROKI_RENDERER_URL
@@ -29,14 +29,14 @@ COPY . ./
 
 RUN pnpm build
 
-FROM mermaid-live-editor-builder AS mermaid-dev
+FROM mermaid-vault-frontend-builder AS mermaid-dev
 
 ENTRYPOINT ["pnpm", "dev"]
 
 FROM nginx:alpine AS mermaid
 
 COPY ./nginx-templates /etc/nginx/templates
-COPY --from=mermaid-live-editor-builder /app/docs /usr/share/nginx/html
+COPY --from=mermaid-vault-frontend-builder /app/docs /usr/share/nginx/html
 COPY ./start.sh /start.sh
 RUN chmod +x /start.sh
 
