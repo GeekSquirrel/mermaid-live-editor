@@ -30,9 +30,28 @@ export default defineConfig({
     alwaysFullReload,
     devtoolsJson()
   ],
-  envPrefix: 'MERMAID_',
-  server: { port: 3000, host: true },
-  preview: { port: 3000, host: true },
+  // Keep MERMAID_ for upstream vars and VITE_ so VITE_API_BASE_URL stays available.
+  envPrefix: ['MERMAID_', 'VITE_'],
+  server: {
+    port: 3000,
+    host: true,
+    proxy: {
+      '/api': {
+        target: process.env.MERMAID_API_PROXY_TARGET || 'http://localhost:8080',
+        changeOrigin: true
+      }
+    }
+  },
+  preview: {
+    port: 3000,
+    host: true,
+    proxy: {
+      '/api': {
+        target: process.env.MERMAID_API_PROXY_TARGET || 'http://localhost:8080',
+        changeOrigin: true
+      }
+    }
+  },
   // Vitest otherwise resolves Svelte's server build, where $effect is a no-op.
   resolve: process.env.VITEST ? { conditions: ['browser'] } : undefined,
   test: {
