@@ -90,7 +90,7 @@ architecture-beta
   {#each diagramOrder as diagramType (diagramType)}
     {@const examples = samples[diagramType]}
     <div class="flex flex-col gap-2">
-      <h3 class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+      <h3 class="text-xs font-semibold tracking-wider text-accent uppercase">
         {diagramType}
       </h3>
       <div class="flex flex-wrap gap-2">

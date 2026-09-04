@@ -157,6 +157,40 @@
     </div>
   {/snippet}
 
+  {#snippet editorTitle()}
+    <button
+      type="button"
+      class={[
+        'flex cursor-pointer items-center gap-2 rounded px-2.5 py-1 text-sm font-medium transition-colors',
+        activeEditorTab === 'code'
+          ? 'bg-background font-semibold text-foreground shadow-sm'
+          : 'text-muted-foreground hover:text-foreground'
+      ]}
+      onclick={(e) => {
+        e.stopPropagation();
+        activeEditorTab = 'code';
+      }}>
+      <CodeIcon class="size-4" />
+      Code
+    </button>
+  {/snippet}
+
+  {#snippet editorActions()}
+    <Button
+      variant={activeEditorTab === 'samples' ? 'secondary' : 'ghost'}
+      size="sm"
+      class={[
+        'h-8 gap-1.5 px-2.5 text-xs font-medium',
+        activeEditorTab === 'samples' && 'bg-accent/15 font-semibold text-accent hover:bg-accent/20'
+      ]}
+      onclick={() => {
+        activeEditorTab = activeEditorTab === 'samples' ? 'code' : 'samples';
+      }}>
+      <ShapesIcon class="size-4" />
+      Samples
+    </Button>
+  {/snippet}
+
   <Navbar mobileToggle={isMobile ? mobileToggle : undefined}>
     <div class="relative inline-flex">
       <Button
@@ -195,23 +229,7 @@
           isViewMode ? '-translate-x-1/2' : 'translate-x-0'
         ]}>
         <div class="flex h-full w-1/2 flex-col gap-4 overflow-y-auto p-2">
-          <Card
-            isOpen
-            title={activeEditorTab === 'code' ? 'Code' : 'Samples'}
-            icon={{ component: activeEditorTab === 'code' ? CodeIcon : ShapesIcon }}
-            isClosable={false}>
-            {#snippet actions()}
-              <Button
-                variant={activeEditorTab === 'samples' ? 'secondary' : 'ghost'}
-                size="sm"
-                class="h-8 gap-1.5 px-2.5 text-xs font-medium"
-                onclick={() => {
-                  activeEditorTab = activeEditorTab === 'samples' ? 'code' : 'samples';
-                }}>
-                <ShapesIcon class="size-4" />
-                Samples
-              </Button>
-            {/snippet}
+          <Card isOpen titleSnippet={editorTitle} actions={editorActions} isClosable={false}>
             {#if activeEditorTab === 'code'}
               <div bind:this={editorContainerRef} class="h-full">
                 <Editor {isMobile} />
@@ -244,23 +262,7 @@
         class="gap-4 p-2 pt-0 sm:gap-0 sm:p-6 sm:pt-0">
         <Resizable.Pane bind:this={editorPane} defaultSize={30} minSize={15}>
           <div class="flex h-full flex-col gap-4 sm:gap-6">
-            <Card
-              isOpen
-              title={activeEditorTab === 'code' ? 'Code' : 'Samples'}
-              icon={{ component: activeEditorTab === 'code' ? CodeIcon : ShapesIcon }}
-              isClosable={false}>
-              {#snippet actions()}
-                <Button
-                  variant={activeEditorTab === 'samples' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  class="h-8 gap-1.5 px-2.5 text-xs font-medium"
-                  onclick={() => {
-                    activeEditorTab = activeEditorTab === 'samples' ? 'code' : 'samples';
-                  }}>
-                  <ShapesIcon class="size-4" />
-                  Samples
-                </Button>
-              {/snippet}
+            <Card isOpen titleSnippet={editorTitle} actions={editorActions} isClosable={false}>
               {#if activeEditorTab === 'code'}
                 <div bind:this={editorContainerRef} class="h-full">
                   <Editor {isMobile} />

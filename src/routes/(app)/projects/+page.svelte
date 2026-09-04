@@ -137,10 +137,10 @@
         {/if}
       </div>
     {:else}
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div class="flex flex-wrap gap-4">
         {#each filteredProjects as project (project.id)}
           <div
-            class="group flex flex-col justify-between rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-md">
+            class="group flex w-full max-w-sm min-w-[280px] flex-1 flex-col justify-between rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-md">
             <div>
               <div class="flex items-start justify-between gap-2">
                 <h2

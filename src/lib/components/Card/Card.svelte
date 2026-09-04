@@ -18,6 +18,7 @@
       class?: string;
     };
     onselect?: (tab: Tab) => void;
+    titleSnippet?: Snippet;
     actions?: Snippet;
     children: Snippet;
   }
@@ -31,6 +32,7 @@
     title,
     icon,
     onselect,
+    titleSnippet,
     actions,
     children
   }: Props = $props();
@@ -59,7 +61,9 @@
     ]}
     onclick={toggleCardOpen}
     onkeypress={toggleCardOpen}>
-    {#if icon || title}
+    {#if titleSnippet}
+      {@render titleSnippet()}
+    {:else if icon || title}
       <span role="menubar" tabindex="0" class="flex w-fit items-center gap-3">
         {#if icon}
           <icon.component class={icon.class} />
