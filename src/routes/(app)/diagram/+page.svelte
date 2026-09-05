@@ -288,7 +288,7 @@
             !isViewMode ? 'hidden' : 'flex'
           ]}>
           <View {panZoomState} shouldShowGrid={validatedState.current.grid} />
-          <div class="absolute top-0 right-0">
+          <div class="absolute top-0 right-0 left-0 mx-auto w-fit">
             <CanvasToolbar
               {panZoomState}
               fullScreenHref={urls.current.view}
