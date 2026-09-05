@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
+  import { api } from '$lib/services/api';
   import { projectState } from '$lib/util/projectState.svelte';
   import BookmarkIcon from '~icons/material-symbols/bookmark-outline-rounded';
   import CheckIcon from '~icons/material-symbols/check-circle-outline-rounded';
@@ -9,7 +10,22 @@
   import { tick } from 'svelte';
   import { fade } from 'svelte/transition';
 
-  const isProjectsPage = $derived(page.url.pathname.startsWith('/projects'));
+  const isDashboardPage = $derived(page.url.pathname.startsWith('/dashboard'));
+
+  // Workspace segment of the editor breadcrumb; re-resolved whenever the
+  // project's workspace changes (load, or first save of a new project).
+  let workspaceName = $state('Default');
+  $effect(() => {
+    const wsId = projectState.workspaceId || '';
+    api
+      .getWorkspaces()
+      .then((list) => {
+        workspaceName = list.find((w) => w.id === wsId)?.name ?? 'Default';
+      })
+      .catch(() => {
+        workspaceName = 'Default';
+      });
+  });
 
   let isEditing = $state(false);
   let editTitle = $state(projectState.title);
@@ -41,14 +57,24 @@
   };
 </script>
 
-{#if isProjectsPage}
-  <span class="text-sm font-semibold text-foreground sm:text-base">Projects</span>
+{#if isDashboardPage}
+  <span class="text-sm font-semibold text-foreground sm:text-base">Dashboard</span>
 {:else}
   <div class="flex min-w-0 items-center gap-1.5 overflow-hidden text-xs sm:gap-2 sm:text-base">
+    <!-- Desktop: Dashboard / Workspace / Project; mobile: Workspace / Project -->
     <a
-      href={resolve('/projects', {})}
-      class="font-medium text-muted-foreground transition-colors hover:text-foreground">
-      Projects
+      href={resolve('/dashboard', {})}
+      class="hidden shrink-0 font-medium text-muted-foreground transition-colors hover:text-foreground md:inline">
+      Dashboard
+    </a>
+    <span class="hidden text-muted-foreground/40 md:inline">/</span>
+    <a
+      href={projectState.workspaceId
+        ? `${resolve('/dashboard', {})}?workspace=${projectState.workspaceId}`
+        : resolve('/dashboard', {})}
+      class="max-w-[100px] shrink-0 truncate font-medium text-muted-foreground transition-colors hover:text-accent sm:max-w-[160px]"
+      title={`Open workspace "${workspaceName}" in dashboard`}>
+      {workspaceName}
     </a>
     <span class="text-muted-foreground/40">/</span>
 

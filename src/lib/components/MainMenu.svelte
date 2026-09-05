@@ -33,7 +33,7 @@
 
   const menuItems: MenuItem[] = $derived([
     { label: 'New', icon: AddIcon, href: urls.current.new, renderer: menuItem },
-    { label: 'Projects', icon: FolderIcon, href: '/projects', renderer: menuItem },
+    { label: 'Dashboard', icon: FolderIcon, href: '/dashboard', renderer: menuItem },
     {
       href: window.location.href,
       icon: DuplicateIcon,

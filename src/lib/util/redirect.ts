@@ -8,7 +8,7 @@ import { resolve } from '$app/paths';
 export const buildRedirectUrl = (location: Location): string => {
   const parts = location.hash.split('/');
   // Visitors without a subpath land on the project list instead of creating a new project.
-  let path = 'projects';
+  let path = 'dashboard';
   let fragment = '';
   if (parts.length > 2) {
     path = parts[1];

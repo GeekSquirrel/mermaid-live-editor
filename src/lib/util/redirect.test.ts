@@ -7,13 +7,13 @@ const mockLocation = (url: string): Location => {
 };
 
 describe('buildRedirectUrl', () => {
-  it('should redirect to /projects by default when hash is empty', () => {
-    expect(buildRedirectUrl(mockLocation('https://mermaid.live/'))).toBe('/projects');
+  it('should redirect to /dashboard by default when hash is empty', () => {
+    expect(buildRedirectUrl(mockLocation('https://mermaid.live/'))).toBe('/dashboard');
   });
 
   it('should preserve search params', () => {
     expect(buildRedirectUrl(mockLocation('https://mermaid.live/?utm_source=github'))).toBe(
-      '/projects?utm_source=github'
+      '/dashboard?utm_source=github'
     );
   });
 
@@ -35,8 +35,10 @@ describe('buildRedirectUrl', () => {
     );
   });
 
-  it('should default to /projects when hash has no route', () => {
-    expect(buildRedirectUrl(mockLocation('https://mermaid.live/#somethingelse'))).toBe('/projects');
+  it('should default to /dashboard when hash has no route', () => {
+    expect(buildRedirectUrl(mockLocation('https://mermaid.live/#somethingelse'))).toBe(
+      '/dashboard'
+    );
   });
 
   it('should handle multiple search params with hash', () => {
