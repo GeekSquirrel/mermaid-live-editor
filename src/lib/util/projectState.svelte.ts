@@ -12,6 +12,7 @@ export interface SaveOptions {
 
 export class ProjectState {
   id = $state<string | null>(null);
+  workspaceId = $state<string | null>(null);
   title = $state<string>('Untitled Project');
   saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
   errorMessage = $state<string | null>(null);
@@ -19,6 +20,9 @@ export class ProjectState {
   bookmarkErrorMessage = $state<string | null>(null);
 
   private initialized = false;
+  /** In-flight loadFromUrl promise; concurrent calls (onMount + afterNavigate) share it
+   *  so a fresh /edit visit never creates two projects. */
+  private loadPromise: Promise<void> | null = null;
   lastSavedCode = '';
   lastSavedTitle = '';
   debouncedSave: ReturnType<typeof debounce>;
@@ -75,6 +79,16 @@ export class ProjectState {
   }
 
   async loadFromUrl() {
+    if (this.loadPromise) {
+      return this.loadPromise;
+    }
+    this.loadPromise = this.doLoadFromUrl().finally(() => {
+      this.loadPromise = null;
+    });
+    return this.loadPromise;
+  }
+
+  private async doLoadFromUrl() {
     if (typeof window === 'undefined') return;
 
     const searchParams = new SvelteURLSearchParams(window.location.search);
@@ -85,6 +99,12 @@ export class ProjectState {
       this.title = 'Untitled Project';
       this.saveStatus = 'idle';
       this.initialized = true;
+
+      // Resolve the workspace the new project belongs to: explicit query param,
+      // otherwise the workspace currently selected on the dashboard.
+      const workspaceParam = searchParams.get('workspaceId');
+      this.workspaceId =
+        workspaceParam || localStorage.getItem('projects.currentWorkspaceId') || '';
 
       // 新建项目时静默保存
       await this.save({ silent: true });
@@ -97,6 +117,7 @@ export class ProjectState {
     try {
       const project = await api.getProject(idParam);
       this.title = project.title || 'Untitled Project';
+      this.workspaceId = project.workspace_id || '';
       this.lastSavedTitle = this.title;
       this.lastSavedCode = project.code;
       updateCode(project.code, { updateDiagram: true });
@@ -167,8 +188,10 @@ export class ProjectState {
       } else {
         const created = await api.createProject({
           title: currentTitle,
-          code: currentCode
+          code: currentCode,
+          workspace_id: this.workspaceId || null
         });
+        this.workspaceId = created.workspace_id || this.workspaceId || '';
         this.id = created.id;
         this.lastSavedCode = currentCode;
         this.lastSavedTitle = this.title;

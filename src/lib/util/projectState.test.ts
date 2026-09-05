@@ -28,6 +28,7 @@ describe('ProjectState auto-save & lifecycle', () => {
   let project: ProjectState;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.useFakeTimers();
     project = new ProjectState();
   });
@@ -145,12 +146,50 @@ describe('ProjectState auto-save & lifecycle', () => {
 
     expect(api.createProject).toHaveBeenCalledWith({
       title: 'Untitled Project',
-      code: 'graph TD\n NewProjectCode'
+      code: 'graph TD\n NewProjectCode',
+      workspace_id: null
     });
     expect(project.id).toBe('created-id-123');
     // Silent save: saveStatus is NOT set to saving or saved
     expect(project.saveStatus).toBe('idle');
     expect(window.location.search).toContain('projectId=created-id-123');
+  });
+
+  it('creates only one project when loadFromUrl is invoked concurrently', async () => {
+    window.history.replaceState(null, '', '/edit');
+    updateCode('graph TD\n ConcurrentCode');
+
+    await Promise.all([project.loadFromUrl(), project.loadFromUrl()]);
+
+    expect(api.createProject).toHaveBeenCalledTimes(1);
+  });
+
+  it('assigns a new project to the workspace from the workspaceId query param', async () => {
+    window.history.replaceState(null, '', '/edit?workspaceId=ws-abc');
+    updateCode('graph TD\n WorkspaceProject');
+
+    await project.loadFromUrl();
+
+    expect(api.createProject).toHaveBeenCalledWith({
+      title: 'Untitled Project',
+      code: 'graph TD\n WorkspaceProject',
+      workspace_id: 'ws-abc'
+    });
+    expect(project.workspaceId).toBe('ws-abc');
+  });
+
+  it('stores the workspace of an existing project on load', async () => {
+    window.history.replaceState(null, '', '/edit?projectId=existing-proj-id');
+    vi.mocked(api.getProject).mockResolvedValueOnce({
+      id: 'existing-proj-id',
+      title: 'Server Project',
+      code: 'graph TD\n ServerCode',
+      workspace_id: 'ws-xyz'
+    } as never);
+
+    await project.loadFromUrl();
+
+    expect(project.workspaceId).toBe('ws-xyz');
   });
 
   it('silently saves when renaming a project (saveStatus remains idle)', async () => {
