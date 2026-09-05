@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "pnpm build:embed && vite dev",
+    "dev:clean:port": "lsof -ti:3000 | xargs -r kill -9",
     "dev:force": "MERMAID_LOCAL=true pnpm dev --force",
     "dev:test": "pnpm dev",
     "build": "pnpm build:embed && vite build",
