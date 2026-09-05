@@ -28,6 +28,9 @@
 
   const SIDEBAR_KEY = 'projects.sidebarOpen';
   const WORKSPACE_KEY = 'projects.currentWorkspaceId';
+  const SIDEBAR_WIDTH_KEY = 'projects.sidebarWidth';
+  const SIDEBAR_MIN_WIDTH = 220;
+  const SIDEBAR_MAX_WIDTH = 440;
 
   let projects = $state<Project[]>([]);
   let workspaces = $state<Workspace[]>([]);
@@ -36,6 +39,10 @@
   let searchQuery = $state('');
   let currentWorkspaceId = $state('');
   let sidebarOpen = $state(true);
+  let sidebarWidth = $state(240);
+  let resizingSidebar = $state(false);
+  let resizeStartX = 0;
+  let resizeStartWidth = 0;
   let selectMode = $state(false);
   let selectedIds = $state<string[]>([]);
   let searchInputEl = $state<HTMLInputElement | null>(null);
@@ -93,8 +100,8 @@
 
   const loadWorkspaces = async () => {
     try {
-      // Newest first; the built-in Default workspace (oldest) sinks to the bottom
-      const list = (await api.getWorkspaces()).sort((a, b) => b.created_at - a.created_at);
+      // Backend returns the manually ordered list (drag & drop persisted)
+      const list = await api.getWorkspaces();
       workspaces = list;
       if (!list.some((w) => w.id === currentWorkspaceId)) {
         currentWorkspaceId = list[0]?.id ?? '';
@@ -110,6 +117,10 @@
     const storedSidebar = localStorage.getItem(SIDEBAR_KEY);
     if (storedSidebar !== null) {
       sidebarOpen = storedSidebar === 'true';
+    }
+    const storedWidth = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+    if (storedWidth >= SIDEBAR_MIN_WIDTH && storedWidth <= SIDEBAR_MAX_WIDTH) {
+      sidebarWidth = storedWidth;
     }
     const storedWorkspace = localStorage.getItem(WORKSPACE_KEY);
     if (storedWorkspace) {
@@ -128,6 +139,40 @@
   const toggleSidebar = () => {
     sidebarOpen = !sidebarOpen;
     localStorage.setItem(SIDEBAR_KEY, String(sidebarOpen));
+  };
+
+  const startResize = (e: PointerEvent) => {
+    resizingSidebar = true;
+    resizeStartX = e.clientX;
+    resizeStartWidth = sidebarWidth;
+    e.preventDefault();
+  };
+
+  const handlePointerMove = (e: PointerEvent) => {
+    if (!resizingSidebar) {
+      return;
+    }
+    sidebarWidth = Math.min(
+      SIDEBAR_MAX_WIDTH,
+      Math.max(SIDEBAR_MIN_WIDTH, resizeStartWidth + (e.clientX - resizeStartX))
+    );
+  };
+
+  const endResize = () => {
+    if (!resizingSidebar) {
+      return;
+    }
+    resizingSidebar = false;
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth));
+  };
+
+  const handleResizeKeydown = (e: KeyboardEvent) => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const step = e.key === 'ArrowLeft' ? -16 : 16;
+      sidebarWidth = Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, sidebarWidth + step));
+      localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth));
+    }
   };
 
   const switchWorkspace = (id: string) => {
@@ -170,6 +215,67 @@
   const cancelCreateWorkspace = () => {
     creatingWorkspace = false;
     newWorkspaceName = '';
+  };
+
+  // Manual workspace ordering via drag & drop
+  let draggingWorkspaceId = $state<string | null>(null);
+  let dropTargetId = $state<string | null>(null);
+  let dropAbove = $state(false);
+
+  const clearDragState = () => {
+    draggingWorkspaceId = null;
+    dropTargetId = null;
+    dropAbove = false;
+  };
+
+  const handleDragStart = (e: DragEvent, workspace: Workspace) => {
+    if (renamingId !== null || pendingDeleteWorkspaceId !== null) {
+      e.preventDefault();
+      return;
+    }
+    draggingWorkspaceId = workspace.id;
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', workspace.id);
+    }
+  };
+
+  const handleDragOver = (e: DragEvent, workspace: Workspace) => {
+    if (!draggingWorkspaceId || draggingWorkspaceId === workspace.id) {
+      return;
+    }
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    dropTargetId = workspace.id;
+    dropAbove = e.clientY < rect.top + rect.height / 2;
+  };
+
+  const handleDrop = (e: DragEvent, workspace: Workspace) => {
+    e.preventDefault();
+    const from = workspaces.findIndex((w) => w.id === draggingWorkspaceId);
+    if (from === -1 || draggingWorkspaceId === workspace.id) {
+      clearDragState();
+      return;
+    }
+    const list = [...workspaces];
+    const [moved] = list.splice(from, 1);
+    let to = list.findIndex((w) => w.id === workspace.id);
+    if (!dropAbove) {
+      to += 1;
+    }
+    list.splice(to, 0, moved);
+    workspaces = list;
+    clearDragState();
+    api
+      .updateWorkspaceOrder(list.map((w) => w.id))
+      .catch((err) =>
+        toast.error(
+          `Failed to save workspace order: ${err instanceof Error ? err.message : 'Unknown error'}`
+        )
+      );
   };
 
   const handleCreateKeydown = (e: KeyboardEvent) => {
@@ -461,9 +567,16 @@
   {/if}
 {/snippet}
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window
+  onkeydown={handleKeydown}
+  onpointermove={handlePointerMove}
+  onpointerup={endResize}
+  onpointercancel={endResize} />
 
-<div class="flex h-full flex-col overflow-hidden bg-background text-foreground">
+<div
+  class="flex h-full flex-col overflow-hidden bg-background text-foreground {resizingSidebar
+    ? 'select-none'
+    : ''}">
   <Navbar leading={sidebarToggle} center={searchBox} />
 
   <div class="relative flex min-h-0 flex-1 overflow-hidden">
@@ -477,7 +590,8 @@
 
       <aside
         transition:fade={{ duration: 120 }}
-        class="absolute inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col border-r border-border bg-card shadow-lg md:relative md:z-auto md:shadow-none">
+        style={`--sidebar-w: ${sidebarWidth}px`}
+        class="absolute inset-y-0 left-0 z-40 flex w-full shrink-0 flex-col border-r border-border bg-card shadow-lg md:relative md:z-auto md:w-[var(--sidebar-w)] md:shadow-none">
         <div class="px-3 pt-3 pb-1">
           <h2 class="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
             Workspaces
@@ -492,7 +606,7 @@
               type="text"
               placeholder="Workspace name"
               aria-label="New workspace name"
-              class="absolute inset-0 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+              class="absolute inset-0 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-xs transition-colors focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
               transition:fade={{ duration: 130 }}
               onkeydown={handleCreateKeydown}
               onblur={() => void confirmCreateWorkspace()} />
@@ -522,20 +636,32 @@
           {/if}
           {#each workspaces as workspace (workspace.id)}
             <div
+              role="listitem"
+              aria-label={`Workspace ${workspace.name}`}
               animate:flip={{ duration: 200 }}
               in:slide={{ duration: 150 }}
               out:fade={{ duration: 120 }}
+              draggable={renamingId === null && pendingDeleteWorkspaceId === null}
               class={[
-                'group relative flex w-full items-center rounded-md transition-colors',
-                workspace.id === currentWorkspaceId ? 'bg-accent/15' : 'hover:bg-muted'
-              ]}>
+                'group relative flex w-full cursor-grab items-center rounded-md transition-colors active:cursor-grabbing',
+                workspace.id === currentWorkspaceId ? 'bg-accent/15' : 'hover:bg-muted',
+                draggingWorkspaceId === workspace.id && 'opacity-50',
+                dropTargetId === workspace.id &&
+                  (dropAbove
+                    ? 'shadow-[inset_0_2px_0_0_var(--color-accent)]'
+                    : 'shadow-[inset_0_-2px_0_0_var(--color-accent)]')
+              ]}
+              ondragstart={(e) => handleDragStart(e, workspace)}
+              ondragover={(e) => handleDragOver(e, workspace)}
+              ondrop={(e) => handleDrop(e, workspace)}
+              ondragend={clearDragState}>
               {#if renamingId === workspace.id}
                 <input
                   bind:this={renameInputEl}
                   bind:value={renameValue}
                   type="text"
                   aria-label="Workspace name"
-                  class="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                  class="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground shadow-xs transition-colors focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
                   onkeydown={handleRenameKeydown}
                   onblur={() => void commitRenameWorkspace()} />
               {:else}
@@ -613,6 +739,20 @@
           <Switch
             checked={mode.current === 'dark'}
             onCheckedChange={(dark) => setMode(dark ? 'dark' : 'light')} />
+        </div>
+
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex -->
+        <!-- ARIA separator resize-handle pattern (pointer + arrow keys) -->
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize sidebar"
+          tabindex="0"
+          class="absolute inset-y-0 right-0 z-20 hidden w-1 cursor-col-resize transition-colors hover:bg-accent/30 md:block {resizingSidebar
+            ? 'bg-accent/40'
+            : ''}"
+          onpointerdown={startResize}
+          onkeydown={handleResizeKeydown}>
         </div>
       </aside>
     {/if}
@@ -823,40 +963,16 @@
 </Dialog.Root>
 
 <style>
+  /* Card width never drops below 24rem; columns reduce automatically down to one */
   .projects-grid {
     display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(24rem, 100%), 1fr));
     gap: 1rem;
   }
 
   @media (min-width: 640px) {
     .projects-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 1.5rem;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .projects-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-
-  @media (min-width: 1280px) and (orientation: landscape) {
-    .projects-grid {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-  }
-
-  @media (min-width: 1536px) and (orientation: landscape) {
-    .projects-grid {
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-    }
-  }
-
-  @media (min-width: 900px) and (orientation: portrait) {
-    .projects-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
 </style>

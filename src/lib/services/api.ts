@@ -262,6 +262,12 @@ export const api = {
       body: JSON.stringify(data)
     }),
 
+  updateWorkspaceOrder: (order: string[]): Promise<{ updated: boolean }> =>
+    request<{ updated: boolean }>('/workspaces/order', {
+      method: 'PUT',
+      body: JSON.stringify({ order })
+    }),
+
   uploadBookmarkPreview: (id: string, dto: SavePreviewDto): Promise<boolean> =>
     uploadPreview('history', id, dto),
 
