@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import FloatingToolbar from '$/components/FloatingToolbar.svelte';
   import { Button } from '$/components/ui/button';
   import { Separator } from '$/components/ui/separator';
@@ -14,6 +15,8 @@
     /** Embed/narrow frames: keep zoom buttons visible below the `sm` breakpoint. */
     compact = false,
     fullScreenHref,
+    /** Extra controls rendered at the far left, before the save/bookmark actions. */
+    leading,
     onBookmark,
     onSave,
     panZoomState
@@ -21,6 +24,7 @@
     compact?: boolean;
     /** When set, shows a "Full Screen" button linking here. Omit for store-free embeds. */
     fullScreenHref?: string;
+    leading?: Snippet;
     onBookmark?: () => void;
     onSave?: () => void;
     panZoomState: PanZoomState;
@@ -30,6 +34,10 @@
 </script>
 
 <FloatingToolbar>
+  {#if leading}
+    {@render leading()}
+    <Separator orientation="vertical" class="h-5 min-h-0 w-px border-0 bg-current opacity-30" />
+  {/if}
   {#if onSave}
     <Button variant="ghost" size="icon" title="Save diagram" onclick={onSave}>
       <SaveIcon class="size-4" />

@@ -16,7 +16,7 @@
   import Navbar from '$/components/Navbar.svelte';
   import CanvasToolbar from '$/components/CanvasToolbar.svelte';
   import Share from '$/components/Share.svelte';
-  import SyncRoughToolbar from '$/components/SyncRoughToolbar.svelte';
+  import StyleToggles from '$/components/StyleToggles.svelte';
   import { Button } from '$/components/ui/button';
   import * as Resizable from '$/components/ui/resizable';
   import VersionSecurityToolbar from '$/components/VersionSecurityToolbar.svelte';
@@ -293,10 +293,13 @@
               {panZoomState}
               fullScreenHref={urls.current.view}
               onSave={() => void handleSaveDiagram()}
-              onBookmark={handleBookmarkDiagram} />
+              onBookmark={handleBookmarkDiagram}>
+              {#snippet leading()}
+                <StyleToggles />
+              {/snippet}
+            </CanvasToolbar>
           </div>
           <div class="absolute right-0 bottom-0"><VersionSecurityToolbar /></div>
-          <div class="absolute bottom-0 left-0"><SyncRoughToolbar /></div>
         </div>
       </div>
     {:else}
@@ -331,10 +334,13 @@
               {panZoomState}
               fullScreenHref={urls.current.view}
               onSave={() => void handleSaveDiagram()}
-              onBookmark={handleBookmarkDiagram} />
+              onBookmark={handleBookmarkDiagram}>
+              {#snippet leading()}
+                <StyleToggles />
+              {/snippet}
+            </CanvasToolbar>
           </div>
           <div class="absolute right-0 bottom-0"><VersionSecurityToolbar /></div>
-          <div class="absolute bottom-0 left-0 sm:left-5"><SyncRoughToolbar /></div>
         </Resizable.Pane>
         {#if activePanel === 'bookmarks'}
           <Resizable.Handle class="ml-1 hidden opacity-0 sm:block" />
