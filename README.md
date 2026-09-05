@@ -30,20 +30,14 @@ docker run --platform linux/amd64 --publish 8000:8080 ghcr.io/mermaid-js/mermaid
 
 The published docker image is built using our default environment variables. You cannot override them when running the image. If you need to customize them, you will need to build the image yourself.
 
-### To configure renderer URL
+### Diagram rendering (PNG / SVG)
 
-When building set the MERMAID_RENDERER_URL build argument to the rendering
-service.
-Example:
-Default is`https://mermaid.ink`.
-Set to empty string to disable PNG and SVG links under Actions
-
-### To configure Kroki Instance URL
-
-When building set the MERMAID_KROKI_RENDERER_URL build argument to your Kroki
-instance.
-Default is `https://kroki.io`
-Set to empty string to disable Kroki link under Actions
+The Share panel's PNG / SVG links are served by the Mermaid Vault backend under
+the current origin (`/api/render/...`), so no external rendering service is
+needed. When embedding the frontend standalone without the vault backend, set
+the `MERMAID_RENDERER_URL` build argument to a
+[mermaid.ink](https://mermaid.ink)-compatible rendering service; leave it empty
+(default) to use the same-origin backend endpoints.
 
 ### To configure Analytics
 
@@ -59,8 +53,8 @@ Default is empty, disabling button to save to Mermaid Chart and promotional bann
 
 ### To update the Security modal
 
-The modal shown on clicking the security link assumes analytics, renderer, Kroki
-and Mermaid chart are enabled. You can update it by modifying `Privacy.svelte`
+The modal shown on clicking the security link assumes analytics and Mermaid
+chart links are enabled. You can update it by modifying `Privacy.svelte`
 if you wish.
 
 ### Development

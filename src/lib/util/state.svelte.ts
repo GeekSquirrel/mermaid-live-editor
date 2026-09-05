@@ -1,6 +1,6 @@
 import { defaultState } from '$/constants';
 import type { ErrorHash, MarkerData, State, ValidatedState } from '$/types';
-import { resolve } from '$app/paths';
+import { resolve, base } from '$app/paths';
 import { debounce, get as lodashGet } from 'lodash-es';
 import type { MermaidConfig } from 'mermaid';
 import { untrack } from 'svelte';
@@ -13,7 +13,7 @@ import {
 import { parse } from './mermaid';
 import { readJSON, writeJSON } from './persist.svelte';
 import { findUnsafeConfigPaths, stripConfigPaths } from './sanitize';
-import { deserializeState, pakoSerde, serializeState } from './serde';
+import { deserializeState, serializeState } from './serde';
 import { errorDebug, formatJSON, getUTMSource, MCBaseURL } from './util';
 
 export { defaultState };
@@ -139,12 +139,14 @@ export const validatedState = {
 };
 
 const urlsCurrent = $derived.by(() => {
-  const { code, serialized } = validatedCurrent;
-  const { krokiRendererUrl, rendererUrl } = env;
-  const png = rendererUrl ? `${rendererUrl}/img/${serialized}?type=png` : '';
+  const { serialized } = validatedCurrent;
+  // Diagram rendering is served by the vault backend under the current origin
+  // (see /api/render). MERMAID_RENDERER_URL still allows overriding it.
+  const { rendererUrl: rendererUrlEnv } = env;
+  const rendererUrl = rendererUrlEnv || `${window.location.origin}${base}/api/render`;
+  const png = `${rendererUrl}/img/${serialized}?type=png`;
   return {
-    kroki: krokiRendererUrl ? `${krokiRendererUrl}/mermaid/svg/${pakoSerde.serialize(code)}` : '',
-    mdCode: png ? `[![](${png})](${window.location.href})` : '',
+    mdCode: `[![](${png})](${window.location.href})`,
     mermaidChart: ({
       medium,
       campaign
@@ -175,8 +177,9 @@ const urlsCurrent = $derived.by(() => {
     },
     new: `${resolve('/diagram', {})}#${serializeState(defaultState)}`,
     png,
-    svg: rendererUrl ? `${rendererUrl}/svg/${serialized}` : '',
-    view: `${resolve('/view', {})}#${serialized}`
+    svg: `${rendererUrl}/svg/${serialized}`,
+    // Absolute URL: the view-only link is meant to be copied and shared.
+    view: `${window.location.origin}${resolve('/view', {})}#${serialized}`
   };
 });
 

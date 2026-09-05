@@ -39,7 +39,7 @@ export class EditorPage {
   }
 
   async toggleActions() {
-    await this.page.getByText('Actions', { exact: true }).click();
+    await this.page.getByRole('button', { name: 'Share' }).click();
   }
 
   async toggleSampleDiagrams() {

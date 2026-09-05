@@ -1,23 +1,67 @@
 <script lang="ts">
   import { buttonVariants } from '$/components/ui/button';
-  import * as Dialog from '$/components/ui/dialog';
   import { Input } from '$/components/ui/input';
   import { Separator } from '$/components/ui/separator';
   import { Switch } from '$/components/ui/switch';
   import * as ToggleGroup from '$/components/ui/toggle-group';
+  import Card from '$/components/Card/Card.svelte';
+  import CopyButton from '$/components/CopyButton.svelte';
+  import CopyInput from '$/components/CopyInput.svelte';
   import { MERMAID_LOOKS, MERMAID_THEMES, TID } from '$/constants';
   import { isDarkTheme, type EmbedMode } from '$/util/embed';
   import { EMBED_IFRAME_SANDBOX, buildEmbedSnippets, buildEmbedUrls } from '$/util/embedCode';
-  import { env } from '$/util/env';
+  import {
+    imageSize,
+    isClipboardAvailable,
+    onCopyClipboard,
+    onDownloadPNG,
+    onDownloadSVG
+  } from '$/util/exportImage.svelte';
   import { silentlySanitizeConfig } from '$/util/sanitize';
   import { urls, validatedState } from '$/util/state.svelte';
   import { copyToClipboard } from '$/util/util';
   import { asset, base } from '$app/paths';
+  import { logEvent } from '$lib/util/stats';
   import CodeIcon from '~icons/material-symbols/code';
+  import CloseIcon from '~icons/material-symbols/close';
+  import DownloadIcon from '~icons/material-symbols/download';
+  import ExternalLinkIcon from '~icons/material-symbols/open-in-new-rounded';
   import ShareIcon from '~icons/material-symbols/share';
-  import CopyButton from './CopyButton.svelte';
-  import CopyInput from './CopyInput.svelte';
-  import MermaidChartIcon from './MermaidChartIcon.svelte';
+  import WidthIcon from '~icons/material-symbols/width-rounded';
+  import { Button } from './ui/button';
+
+  interface Props {
+    /** Provided on mobile, where the panel needs an explicit close affordance. */
+    onClose?: () => void;
+  }
+
+  let { onClose }: Props = $props();
+
+  // ---------------------------------------------------------------------------
+  // Export (previously the Actions card)
+  // ---------------------------------------------------------------------------
+
+  let gistURL = $state('');
+  $effect(() => {
+    const { loader } = validatedState.current;
+    if (loader?.type === 'gist') {
+      gistURL = loader.config.url;
+    }
+  });
+
+  const loadGist = () => {
+    if (!gistURL) {
+      return alert('Please enter a Gist URL first');
+    }
+    window.location.href = `${window.location.pathname}?gist=${gistURL}`;
+    logEvent('loadGist');
+  };
+
+  const isNetlify = window.location.host.includes('netlify');
+
+  // ---------------------------------------------------------------------------
+  // Embed (previously the Share dialog)
+  // ---------------------------------------------------------------------------
 
   const sanitizedConfig = $derived(silentlySanitizeConfig(validatedState.current.mermaid));
   // Deliberate initial-value capture: the embed form seeds from the config at
@@ -53,19 +97,15 @@
   const snippet = $derived(format === 'webComponent' ? snippets.webComponent : snippets.iframe);
 </script>
 
-<Dialog.Root>
-  <Dialog.Trigger class={buttonVariants({ size: 'sm', class: 'gap-1.5' })}>
-    <ShareIcon class="size-4" />
-    Share
-  </Dialog.Trigger>
-  <Dialog.Content class="max-h-[90vh] overflow-y-auto sm:max-w-xl">
-    <Dialog.Header>
-      <Dialog.Title class="flex items-center gap-2 text-xl">
-        <ShareIcon class="size-5" /> Shareable links
-      </Dialog.Title>
-      <Dialog.Description>Share your diagrams with others.</Dialog.Description>
-    </Dialog.Header>
-
+<Card isOpen isClosable={false} title="Share" icon={{ component: ShareIcon, class: 'size-4' }}>
+  {#snippet actions()}
+    {#if onClose}
+      <Button size="icon" variant="ghost" onclick={onClose} title="Close share panel">
+        <CloseIcon />
+      </Button>
+    {/if}
+  {/snippet}
+  <div class="h-full overflow-y-auto p-2">
     <div class="flex flex-col gap-4">
       <div class="flex flex-col gap-2">
         <h2 class="flex items-center gap-2">
@@ -73,32 +113,108 @@
           Mermaid Live Editor
         </h2>
         <CopyInput value={window.location.href} />
-        <Dialog.Description>
+        <p class="text-sm text-muted-foreground">
           The content of the diagrams you create never leaves your browser.
-        </Dialog.Description>
+        </p>
       </div>
-      {#if env.isEnabledMermaidChartLinks}
-        <Separator />
-        <div class="flex flex-col gap-2">
-          <h2 class="flex items-center gap-2">
-            <MermaidChartIcon class="size-5" />
-            Mermaid Chart Playground
-          </h2>
-          <CopyInput value={urls.current.mermaidChart({ medium: 'share' }).playground} />
-          <Dialog.Description>
-            Opens the Mermaid Chart Playground with Mermaid AI, Visual Editor, and more.
-          </Dialog.Description>
-        </div>
-      {/if}
+
       <Separator />
+
+      <div class="flex flex-col gap-2">
+        <h2 class="flex items-center gap-2">
+          <ExternalLinkIcon class="size-5" />
+          View-only link
+        </h2>
+        <CopyInput value={urls.current.view} />
+        <p class="text-sm text-muted-foreground">
+          Opens the current diagram on this server without editing controls.
+        </p>
+      </div>
+
+      <Separator />
+
+      <div class="flex flex-col gap-2">
+        <h2>Export</h2>
+        <div class="flex w-full flex-wrap items-center gap-2 whitespace-nowrap">
+          PNG size
+          <ToggleGroup.Root type="single" variant="outline" bind:value={imageSize.mode}>
+            <ToggleGroup.Item value="auto">Auto</ToggleGroup.Item>
+            <ToggleGroup.Item value="width">Width</ToggleGroup.Item>
+            <ToggleGroup.Item value="height">Height</ToggleGroup.Item>
+          </ToggleGroup.Root>
+          {#if imageSize.mode !== 'auto'}
+            <WidthIcon
+              class={[
+                'size-6 shrink-0 transition-all',
+                imageSize.mode === 'width' && 'rotate-90'
+              ]} />
+          {/if}
+          <Input
+            type="number"
+            min="3"
+            max="10000"
+            disabled={imageSize.mode === 'auto'}
+            bind:value={imageSize.size} />
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <div class="flex min-w-40 flex-grow gap-0.5">
+            <Button class="flex-grow" onclick={onDownloadPNG} data-testid="download-PNG">
+              <DownloadIcon />
+              PNG
+            </Button>
+          </div>
+          <div class="flex min-w-40 flex-grow gap-0.5">
+            <Button class="flex-grow" onclick={() => onDownloadSVG()} data-testid="download-SVG">
+              <DownloadIcon />
+              SVG
+            </Button>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <a
+            class={buttonVariants({ variant: 'outline', class: 'flex-grow gap-2' })}
+            target="_blank"
+            rel="noreferrer"
+            href={urls.current.png}>
+            <ExternalLinkIcon /> Open PNG
+          </a>
+          <a
+            class={buttonVariants({ variant: 'outline', class: 'flex-grow gap-2' })}
+            target="_blank"
+            rel="noreferrer"
+            href={urls.current.svg}>
+            <ExternalLinkIcon /> Open SVG
+          </a>
+        </div>
+        <Separator />
+        {#if isClipboardAvailable()}
+          <CopyButton onclick={onCopyClipboard} label="Copy Image" />
+        {/if}
+        <CopyInput value={urls.current.mdCode} label="Copy Markdown" testID={TID.copyMarkdown} />
+        <p class="text-xs text-muted-foreground">Markdown thumbnail generated by this server.</p>
+        <div class="flex w-full items-center gap-2">
+          <Input type="url" bind:value={gistURL} placeholder="Enter Gist URL" />
+          <Button onclick={loadGist}>Load Gist</Button>
+        </div>
+        {#if isNetlify}
+          <div class="flex w-full items-center justify-center">
+            <a class="link text-sm text-gray-500 underline" href="https://netlify.com">
+              This site is powered by Netlify
+            </a>
+          </div>
+        {/if}
+      </div>
+
+      <Separator />
+
       <div class="flex flex-col gap-3">
         <h2 class="flex items-center gap-2">
           <CodeIcon class="size-5" />
           Embed
         </h2>
-        <Dialog.Description>
+        <p class="text-sm text-muted-foreground">
           Embed a live, interactive diagram in your own website or blog.
-        </Dialog.Description>
+        </p>
         <div class="grid grid-cols-2 gap-3">
           <label class="flex flex-col gap-1 text-sm">
             Theme
@@ -188,5 +304,5 @@
         </div>
       </div>
     </div>
-  </Dialog.Content>
-</Dialog.Root>
+  </div>
+</Card>

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import Actions from '$/components/Actions.svelte';
   import Card from '$/components/Card/Card.svelte';
   import Editor from '$/components/Editor.svelte';
   import SamplesPanel from '$/components/SamplesPanel.svelte';
@@ -31,6 +30,7 @@
   import CodeIcon from '~icons/custom/code';
   import BookmarkIcon from '~icons/material-symbols/bookmark-outline-rounded';
   import HistoryIcon from '~icons/material-symbols/history';
+  import ShareIcon from '~icons/material-symbols/share';
   import ShapesIcon from '~icons/material-symbols/account-tree-outline-rounded';
   import EditIcon from '~icons/material-symbols/edit-outline-rounded';
   import ViewIcon from '~icons/material-symbols/visibility-outline-rounded';
@@ -90,6 +90,10 @@
   });
 
   onMount(async () => {
+    const savedPanelWidth = Number(localStorage.getItem(PANEL_WIDTH_KEY));
+    if (savedPanelWidth >= PANEL_MIN_WIDTH) {
+      panelWidth = Math.min(savedPanelWidth, PANEL_MAX_WIDTH);
+    }
     await initHandler();
     await diagramState.loadFromUrl();
     setCurrentDiagramId(diagramState.id);
@@ -131,7 +135,7 @@
     addManualEntry(currentState, title || undefined, currentId);
   };
 
-  let activePanel = $state<'bookmarks' | 'timeline' | null>(null);
+  let activePanel = $state<'bookmarks' | 'timeline' | 'share' | null>(null);
 
   const toggleBookmarks = () => {
     activePanel = activePanel === 'bookmarks' ? null : 'bookmarks';
@@ -145,6 +149,42 @@
     if (activePanel === 'timeline') {
       setMode('auto');
     }
+  };
+
+  const toggleShare = () => {
+    activePanel = activePanel === 'share' ? null : 'share';
+  };
+
+  // The right-side panel is an overlay drawer: dragging its left edge covers
+  // the canvas and code editor instead of squeezing them.
+  const PANEL_WIDTH_KEY = 'rightPanelWidth';
+  const PANEL_MIN_WIDTH = 420;
+  const PANEL_MAX_WIDTH = 700;
+  let panelWidth = $state(420);
+  let panelDragging = false;
+  let panelDragStartX = 0;
+  let panelDragStartWidth = 0;
+
+  const startPanelDrag = (event: PointerEvent) => {
+    panelDragging = true;
+    panelDragStartX = event.clientX;
+    panelDragStartWidth = panelWidth;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  };
+
+  const movePanelDrag = (event: PointerEvent) => {
+    if (!panelDragging) {
+      return;
+    }
+    panelWidth = Math.max(
+      PANEL_MIN_WIDTH,
+      Math.min(panelDragStartWidth + (panelDragStartX - event.clientX), PANEL_MAX_WIDTH, width)
+    );
+  };
+
+  const endPanelDrag = () => {
+    panelDragging = false;
+    localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidth));
   };
 
   let editorPane = $state<Resizable.Pane>();
@@ -255,7 +295,15 @@
       <HistoryIcon class="size-4" />
       Timeline
     </Button>
-    <Share />
+    <Button
+      variant={activePanel === 'share' ? 'secondary' : 'default'}
+      size="sm"
+      class="gap-1.5"
+      onclick={toggleShare}
+      title="Share">
+      <ShareIcon class="size-4" />
+      Share
+    </Button>
   </Navbar>
 
   <div class="flex flex-1 flex-col overflow-hidden" bind:clientWidth={width}>
@@ -278,7 +326,6 @@
               </div>
             {/if}
           </Card>
-          <Actions />
         </div>
 
         <!-- Mobile View Pane -->
@@ -301,12 +348,19 @@
           </div>
           <div class="absolute right-0 bottom-0"><VersionSecurityToolbar /></div>
         </div>
+
+        <!-- Mobile Share Panel -->
+        {#if activePanel === 'share'}
+          <div class="absolute inset-0 z-40 flex flex-col overflow-hidden bg-background p-2">
+            <Share onClose={() => (activePanel = null)} />
+          </div>
+        {/if}
       </div>
     {:else}
       <Resizable.PaneGroup
         direction="horizontal"
         autoSaveId="liveEditor"
-        class="gap-4 p-2 pt-0 sm:gap-0 sm:p-6 sm:pt-0">
+        class="relative gap-4 p-2 pt-0 sm:gap-0 sm:p-6 sm:pt-0">
         <Resizable.Pane bind:this={editorPane} defaultSize={30} minSize={15}>
           <div class="flex h-full flex-col gap-4 sm:gap-6">
             <Card isOpen titleSnippet={editorTitle} actions={editorActions} isClosable={false}>
@@ -320,10 +374,6 @@
                 </div>
               {/if}
             </Card>
-
-            <div class="flex flex-col gap-4 sm:gap-6">
-              <Actions />
-            </div>
           </div>
         </Resizable.Pane>
         <Resizable.Handle class="mr-1 hidden opacity-0 sm:block" />
@@ -342,16 +392,31 @@
           </div>
           <div class="absolute right-0 bottom-0"><VersionSecurityToolbar /></div>
         </Resizable.Pane>
-        {#if activePanel === 'bookmarks'}
-          <Resizable.Handle class="ml-1 hidden opacity-0 sm:block" />
-          <Resizable.Pane minSize={15} defaultSize={30} class="hidden h-full grow flex-col sm:flex">
-            <Bookmarks />
-          </Resizable.Pane>
-        {:else if activePanel === 'timeline'}
-          <Resizable.Handle class="ml-1 hidden opacity-0 sm:block" />
-          <Resizable.Pane minSize={15} defaultSize={30} class="hidden h-full grow flex-col sm:flex">
-            <Timeline />
-          </Resizable.Pane>
+        {#if activePanel}
+          <!-- Overlay drawer: intentionally outside the pane group so resizing
+               covers the canvas and code editor instead of squeezing them. -->
+          <div
+            class="absolute inset-y-0 right-0 z-20 flex flex-col bg-background shadow-2xl"
+            style:width="{panelWidth}px">
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              class="absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize touch-none hover:bg-border/60"
+              onpointerdown={startPanelDrag}
+              onpointermove={movePanelDrag}
+              onpointerup={endPanelDrag}
+              onpointercancel={endPanelDrag}>
+            </div>
+            <div class="flex h-full flex-col overflow-hidden">
+              {#if activePanel === 'bookmarks'}
+                <Bookmarks />
+              {:else if activePanel === 'timeline'}
+                <Timeline />
+              {:else if activePanel === 'share'}
+                <Share />
+              {/if}
+            </div>
+          </div>
         {/if}
       </Resizable.PaneGroup>
     {/if}
