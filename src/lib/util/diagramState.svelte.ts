@@ -10,10 +10,10 @@ export interface SaveOptions {
   silent?: boolean;
 }
 
-export class ProjectState {
+export class DiagramState {
   id = $state<string | null>(null);
   workspaceId = $state<string | null>(null);
-  title = $state<string>('Untitled Project');
+  title = $state<string>('Untitled Diagram');
   saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
   errorMessage = $state<string | null>(null);
   bookmarkStatus = $state<'idle' | 'bookmarked' | 'duplicate' | 'error'>('idle');
@@ -21,7 +21,7 @@ export class ProjectState {
 
   private initialized = false;
   /** In-flight loadFromUrl promise; concurrent calls (onMount + afterNavigate) share it
-   *  so a fresh /edit visit never creates two projects. */
+   *  so a fresh /diagram visit never creates two diagrams. */
   private loadPromise: Promise<void> | null = null;
   lastSavedCode = '';
   lastSavedTitle = '';
@@ -92,19 +92,19 @@ export class ProjectState {
     if (typeof window === 'undefined') return;
 
     const searchParams = new SvelteURLSearchParams(window.location.search);
-    const idParam = searchParams.get('projectId');
+    const idParam = searchParams.get('id');
 
     if (!idParam) {
       this.id = null;
-      this.title = 'Untitled Project';
+      this.title = 'Untitled Diagram';
       this.saveStatus = 'idle';
       this.initialized = true;
 
-      // Resolve the workspace the new project belongs to: explicit query param,
+      // Resolve the workspace the new diagram belongs to: explicit query param,
       // otherwise the workspace currently selected on the dashboard.
       const workspaceParam = searchParams.get('workspaceId');
       this.workspaceId =
-        workspaceParam || localStorage.getItem('projects.currentWorkspaceId') || '';
+        workspaceParam || localStorage.getItem('diagrams.currentWorkspaceId') || '';
 
       // 新建项目时静默保存
       await this.save({ silent: true });
@@ -115,16 +115,16 @@ export class ProjectState {
     this.saveStatus = 'idle';
 
     try {
-      const project = await api.getProject(idParam);
-      this.title = project.title || 'Untitled Project';
-      this.workspaceId = project.workspace_id || '';
+      const diagram = await api.getDiagram(idParam);
+      this.title = diagram.title || 'Untitled Diagram';
+      this.workspaceId = diagram.workspace_id || '';
       this.lastSavedTitle = this.title;
-      this.lastSavedCode = project.code;
-      updateCode(project.code, { updateDiagram: true });
+      this.lastSavedCode = diagram.code;
+      updateCode(diagram.code, { updateDiagram: true });
       this.saveStatus = 'idle';
     } catch (err) {
-      console.error('Failed to load project:', err);
-      this.errorMessage = err instanceof Error ? err.message : 'Failed to load project';
+      console.error('Failed to load diagram:', err);
+      this.errorMessage = err instanceof Error ? err.message : 'Failed to load diagram';
       this.saveStatus = 'error';
     } finally {
       this.initialized = true;
@@ -133,7 +133,7 @@ export class ProjectState {
 
   async rename(newTitle: string) {
     if (!this.initialized) return;
-    const trimmed = newTitle.trim() || 'Untitled Project';
+    const trimmed = newTitle.trim() || 'Untitled Diagram';
     this.title = trimmed;
     if (trimmed !== this.lastSavedTitle) {
       // 重命名时静默保存，不显示 saving/saved 标识
@@ -177,16 +177,16 @@ export class ProjectState {
     }
 
     try {
-      const currentTitle = this.title.trim() || 'Untitled Project';
+      const currentTitle = this.title.trim() || 'Untitled Diagram';
       if (this.id) {
-        await api.updateProject(this.id, {
+        await api.updateDiagram(this.id, {
           title: currentTitle,
           code: currentCode
         });
         this.lastSavedCode = currentCode;
         this.lastSavedTitle = this.title;
       } else {
-        const created = await api.createProject({
+        const created = await api.createDiagram({
           title: currentTitle,
           code: currentCode,
           workspace_id: this.workspaceId || null
@@ -197,7 +197,7 @@ export class ProjectState {
         this.lastSavedTitle = this.title;
 
         const newUrl = new SvelteURL(window.location.href);
-        newUrl.searchParams.set('projectId', created.id);
+        newUrl.searchParams.set('id', created.id);
         const currentState = typeof window !== 'undefined' ? (window.history.state ?? {}) : {};
         window.history.replaceState(currentState, '', newUrl.toString());
       }
@@ -217,7 +217,7 @@ export class ProjectState {
         }, 3_000);
       }
     } catch (err) {
-      console.error('Failed to save project:', err);
+      console.error('Failed to save diagram:', err);
       if (this.savingTimer) {
         clearTimeout(this.savingTimer);
         this.savingTimer = undefined;
@@ -266,4 +266,4 @@ export class ProjectState {
   }
 }
 
-export const projectState = new ProjectState();
+export const diagramState = new DiagramState();

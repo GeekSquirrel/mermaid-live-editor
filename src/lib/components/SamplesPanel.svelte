@@ -2,7 +2,7 @@
   import { Button } from '$/components/ui/button';
   import { getSampleDiagrams, type SampleExample } from '$/util/mermaid';
   import { inputState, updateCode } from '$lib/util/state.svelte';
-  import { projectState } from '$lib/util/projectState.svelte';
+  import { diagramState } from '$lib/util/diagramState.svelte';
   import { logEvent } from '$lib/util/stats';
 
   const extras: Record<string, SampleExample[]> = {
@@ -74,7 +74,7 @@ architecture-beta
       updateDiagram: true
     });
     logEvent('loadSampleDiagram', { diagramType, exampleTitle: example.title });
-    void projectState.save({ silent: true });
+    void diagramState.save({ silent: true });
   };
 
   const mainDiagrams = [

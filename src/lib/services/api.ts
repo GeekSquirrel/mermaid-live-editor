@@ -1,6 +1,6 @@
 import type { HistoryEntry, State } from '$lib/types';
 
-export interface Project {
+export interface Diagram {
   id: string;
   title: string;
   code: string;
@@ -9,13 +9,13 @@ export interface Project {
   updated_at: number;
 }
 
-export interface CreateProjectDto {
+export interface CreateDiagramDto {
   title: string;
   code: string;
   workspace_id?: string | null;
 }
 
-export interface UpdateProjectDto {
+export interface UpdateDiagramDto {
   title?: string;
   code?: string;
   workspace_id?: string | null;
@@ -39,8 +39,8 @@ export interface UpdateWorkspaceDto {
 export interface CreateHistoryDto {
   id?: string;
   name: string;
-  projectId?: string | null;
-  project_id?: string | null;
+  diagramId?: string | null;
+  diagram_id?: string | null;
   state: State | Record<string, unknown>;
   time?: number;
   type?: string;
@@ -139,7 +139,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return json.data as T;
 }
 
-type PreviewKind = 'projects' | 'history';
+type PreviewKind = 'diagrams' | 'history';
 
 /** Fetch the stored server-side preview SVG; null when missing or stale (404). */
 async function fetchPreview(
@@ -180,25 +180,25 @@ async function uploadPreview(kind: PreviewKind, id: string, dto: SavePreviewDto)
 export const api = {
   clearHistoryEntries: (
     type = 'manual',
-    projectId?: string | null
+    diagramId?: string | null
   ): Promise<{ cleared: boolean }> => {
     let path = `/history?type=${encodeURIComponent(type)}`;
-    if (projectId !== undefined) {
-      path += `&projectId=${encodeURIComponent(projectId || 'default')}`;
+    if (diagramId !== undefined) {
+      path += `&diagramId=${encodeURIComponent(diagramId || 'default')}`;
     }
     return request<{ cleared: boolean }>(path, {
       method: 'DELETE'
     });
   },
 
-  createHistoryEntry: (data: CreateHistoryDto): Promise<HistoryEntry> =>
-    request<HistoryEntry>('/history', {
+  createDiagram: (data: CreateDiagramDto): Promise<Diagram> =>
+    request<Diagram>('/diagrams', {
       method: 'POST',
       body: JSON.stringify(data)
     }),
 
-  createProject: (data: CreateProjectDto): Promise<Project> =>
-    request<Project>('/projects', {
+  createHistoryEntry: (data: CreateHistoryDto): Promise<HistoryEntry> =>
+    request<HistoryEntry>('/history', {
       method: 'POST',
       body: JSON.stringify(data)
     }),
@@ -209,13 +209,13 @@ export const api = {
       body: JSON.stringify(data)
     }),
 
-  deleteHistoryEntry: (id: string): Promise<{ deleted: boolean }> =>
-    request<{ deleted: boolean }>(`/history/${id}`, {
+  deleteDiagram: (id: string): Promise<{ deleted: boolean }> =>
+    request<{ deleted: boolean }>(`/diagrams/${id}`, {
       method: 'DELETE'
     }),
 
-  deleteProject: (id: string): Promise<{ deleted: boolean }> =>
-    request<{ deleted: boolean }>(`/projects/${id}`, {
+  deleteHistoryEntry: (id: string): Promise<{ deleted: boolean }> =>
+    request<{ deleted: boolean }>(`/history/${id}`, {
       method: 'DELETE'
     }),
 
@@ -227,31 +227,31 @@ export const api = {
   getBookmarkPreview: (id: string, theme: PreviewTheme): Promise<string | null> =>
     fetchPreview('history', id, theme),
 
-  getHistoryEntries: (type = 'manual', projectId?: string | null): Promise<HistoryEntry[]> => {
+  getDiagram: (id: string): Promise<Diagram> => request<Diagram>(`/diagrams/${id}`),
+
+  getDiagramPreview: (id: string, theme: PreviewTheme): Promise<string | null> =>
+    fetchPreview('diagrams', id, theme),
+
+  getDiagrams: (): Promise<Diagram[]> => request<Diagram[]>('/diagrams'),
+
+  getHistoryEntries: (type = 'manual', diagramId?: string | null): Promise<HistoryEntry[]> => {
     let path = `/history?type=${encodeURIComponent(type)}`;
-    if (projectId !== undefined) {
-      path += `&projectId=${encodeURIComponent(projectId || 'default')}`;
+    if (diagramId !== undefined) {
+      path += `&diagramId=${encodeURIComponent(diagramId || 'default')}`;
     }
     return request<HistoryEntry[]>(path);
   },
 
-  getProject: (id: string): Promise<Project> => request<Project>(`/projects/${id}`),
-
-  getProjectPreview: (id: string, theme: PreviewTheme): Promise<string | null> =>
-    fetchPreview('projects', id, theme),
-
-  getProjects: (): Promise<Project[]> => request<Project[]>('/projects'),
-
   getWorkspaces: (): Promise<Workspace[]> => request<Workspace[]>('/workspaces'),
 
-  updateHistoryEntry: (id: string, data: UpdateHistoryDto): Promise<HistoryEntry> =>
-    request<HistoryEntry>(`/history/${id}`, {
+  updateDiagram: (id: string, data: UpdateDiagramDto): Promise<Diagram> =>
+    request<Diagram>(`/diagrams/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     }),
 
-  updateProject: (id: string, data: UpdateProjectDto): Promise<Project> =>
-    request<Project>(`/projects/${id}`, {
+  updateHistoryEntry: (id: string, data: UpdateHistoryDto): Promise<HistoryEntry> =>
+    request<HistoryEntry>(`/history/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     }),
@@ -271,6 +271,6 @@ export const api = {
   uploadBookmarkPreview: (id: string, dto: SavePreviewDto): Promise<boolean> =>
     uploadPreview('history', id, dto),
 
-  uploadProjectPreview: (id: string, dto: SavePreviewDto): Promise<boolean> =>
-    uploadPreview('projects', id, dto)
+  uploadDiagramPreview: (id: string, dto: SavePreviewDto): Promise<boolean> =>
+    uploadPreview('diagrams', id, dto)
 };

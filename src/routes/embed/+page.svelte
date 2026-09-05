@@ -66,7 +66,7 @@
           <p>{resolved.error}</p>
           <p class="mt-2 text-muted-foreground">
             Check that the link is complete, or
-            <a class="underline" href={resolve('/edit', {})}>create a new diagram</a>.
+            <a class="underline" href={resolve('/diagram', {})}>create a new diagram</a>.
           </p>
         </div>
       </div>
@@ -120,7 +120,7 @@
       <div class="flex items-center gap-3">
         <a
           data-testid={TID.embedEditLink}
-          href={buildEditUrl(serialized, window.location.origin + resolve('/edit', {}))}
+          href={buildEditUrl(serialized, window.location.origin + resolve('/diagram', {}))}
           target="_blank"
           rel="noreferrer noopener"
           class="text-muted-foreground hover:text-foreground">

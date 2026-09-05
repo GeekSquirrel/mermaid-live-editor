@@ -8,7 +8,7 @@
   import {
     addManualEntry,
     loadSavedEntries,
-    setCurrentProjectId,
+    setCurrentDiagramId,
     startAutoSave
   } from '$/components/History/historyState.svelte';
   import { afterNavigate } from '$app/navigation';
@@ -23,7 +23,7 @@
   import View from '$/components/View.svelte';
   import { shouldShowEditorChooser } from '$/util/migration/domainMigration';
   import { PanZoomState } from '$/util/panZoom';
-  import { projectState } from '$/util/projectState.svelte';
+  import { diagramState } from '$/util/diagramState.svelte';
   import { validatedState, urls, inputState } from '$/util/state.svelte';
   import { logEvent } from '$/util/stats';
   import { initHandler } from '$/util/util';
@@ -69,8 +69,8 @@
       activeEl.blur();
     }
 
-    if (projectState.hasChanges) {
-      void projectState.save();
+    if (diagramState.hasChanges) {
+      void diagramState.save();
     }
   };
 
@@ -91,8 +91,8 @@
 
   onMount(async () => {
     await initHandler();
-    await projectState.loadFromUrl();
-    setCurrentProjectId(projectState.id);
+    await diagramState.loadFromUrl();
+    setCurrentDiagramId(diagramState.id);
     showEditorChooser = shouldShowEditorChooser();
     window.addEventListener('appinstalled', () => {
       logEvent('pwaInstalled', { isMobile });
@@ -100,17 +100,17 @@
   });
 
   afterNavigate(async () => {
-    await projectState.loadFromUrl();
-    setCurrentProjectId(projectState.id);
+    await diagramState.loadFromUrl();
+    setCurrentDiagramId(diagramState.id);
   });
 
   $effect(() => {
     void inputState.code;
-    projectState.notifyChange();
+    diagramState.notifyChange();
   });
 
   $effect(() => {
-    setCurrentProjectId(projectState.id);
+    setCurrentDiagramId(diagramState.id);
   });
 
   // Record the Timeline for the whole session and load saved history from backend
@@ -120,14 +120,14 @@
   });
 
   const handleSaveDiagram = async () => {
-    await projectState.save();
+    await diagramState.save();
   };
 
   const handleBookmarkDiagram = () => {
-    const currentId = projectState.id;
-    setCurrentProjectId(currentId);
+    const currentId = diagramState.id;
+    setCurrentDiagramId(currentId);
     const currentState = $state.snapshot(inputState);
-    const title = projectState.title?.trim();
+    const title = diagramState.title?.trim();
     addManualEntry(currentState, title || undefined, currentId);
   };
 

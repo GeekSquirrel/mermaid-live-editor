@@ -6,7 +6,7 @@
   import { mode } from 'mode-watcher';
   import * as monaco from 'monaco-editor';
   import monacoEditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-  import { projectState } from '$lib/util/projectState.svelte';
+  import { diagramState } from '$lib/util/diagramState.svelte';
   import { onMount } from 'svelte';
 
   const { onUpdate }: EditorProps = $props();
@@ -73,8 +73,8 @@
     });
 
     editor.onDidBlurEditorText(() => {
-      if (projectState.hasChanges) {
-        void projectState.save();
+      if (diagramState.hasChanges) {
+        void diagramState.save();
       }
     });
 

@@ -9,7 +9,7 @@
 
 <script lang="ts">
   import MainMenu from '$/components/MainMenu.svelte';
-  import ProjectBreadcrumb from '$/components/ProjectBreadcrumb.svelte';
+  import DiagramBreadcrumb from '$/components/DiagramBreadcrumb.svelte';
   import { Button } from '$/components/ui/button';
   import type { Snippet } from 'svelte';
   import GithubIcon from '~icons/mdi/github';
@@ -19,7 +19,7 @@
     children?: Snippet;
     /** Rendered between the leading button and the breadcrumb; defaults to the main menu popover. */
     leading?: Snippet;
-    /** Rendered in the center of the navbar (e.g. the projects search input). */
+    /** Rendered in the center of the navbar (e.g. the diagrams search input). */
     center?: Snippet;
   }
 
@@ -33,7 +33,7 @@
     {:else}
       <MainMenu />
     {/if}
-    <ProjectBreadcrumb />
+    <DiagramBreadcrumb />
   </div>
   {#if center}
     <div class="flex min-w-0 flex-1 justify-center">

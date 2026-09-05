@@ -35,7 +35,7 @@
           self-hosted deployment. No third-party trackers or external cloud services are enabled.
         </p>
         <p>
-          This is an open source project based on Mermaid Live Editor with full-stack persistent
+          This is an open source diagram based on Mermaid Live Editor with full-stack persistent
           storage capabilities. Source code and updates are available on
           <a
             href="https://github.com/GeekSquirrel/mermaid-vault"

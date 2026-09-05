@@ -6,18 +6,18 @@ import { logEvent } from '$lib/util/stats';
 import { generateSlug } from 'random-word-slugs';
 import { v4 as uuidV4 } from 'uuid';
 
-import { projectState } from '$lib/util/projectState.svelte';
+import { diagramState } from '$lib/util/diagramState.svelte';
 
 const MAX_AUTO_HISTORY_LENGTH = 30;
 const AUTO_SAVE_INTERVAL = 60_000;
 
-let currentProjectId = $state<string | null>(null);
+let currentDiagramId = $state<string | null>(null);
 
-const getAutoKey = (projectId: string | null): string =>
-  projectId ? `autoHistoryStore:${projectId}` : 'autoHistoryStore';
+const getAutoKey = (diagramId: string | null): string =>
+  diagramId ? `autoHistoryStore:${diagramId}` : 'autoHistoryStore';
 
-const getManualKey = (projectId: string | null): string =>
-  projectId ? `manualHistoryStore:${projectId}` : 'manualHistoryStore';
+const getManualKey = (diagramId: string | null): string =>
+  diagramId ? `manualHistoryStore:${diagramId}` : 'manualHistoryStore';
 
 let autoEntries = $state<HistoryEntry[]>(readJSON<HistoryEntry[]>(getAutoKey(null), []));
 let manual = $state<HistoryEntry[]>(readJSON<HistoryEntry[]>(getManualKey(null), []));
@@ -32,6 +32,9 @@ if (mode.value === 'loader') {
 export const historyState = {
   get bookmarkCount(): number {
     return manual.length;
+  },
+  get diagramId(): string | null {
+    return currentDiagramId;
   },
   get entries(): HistoryEntry[] {
     switch (mode.value) {
@@ -48,9 +51,6 @@ export const historyState = {
   },
   get mode(): HistoryType {
     return mode.value;
-  },
-  get projectId(): string | null {
-    return currentProjectId;
   }
 };
 
@@ -58,11 +58,11 @@ export const setMode = (next: HistoryType): void => {
   mode.value = next;
 };
 
-export const setCurrentProjectId = (id: string | null): void => {
-  if (currentProjectId === id) {
+export const setCurrentDiagramId = (id: string | null): void => {
+  if (currentDiagramId === id) {
     return;
   }
-  currentProjectId = id;
+  currentDiagramId = id;
   autoEntries = readJSON<HistoryEntry[]>(getAutoKey(id), []);
   manual = readJSON<HistoryEntry[]>(getManualKey(id), []);
   void loadSavedEntries(id);
@@ -77,26 +77,25 @@ const createEntry = (
   state: State,
   type: 'auto' | 'manual',
   customName?: string,
-  projectId: string | null = currentProjectId
+  diagramId: string | null = currentDiagramId
 ): HistoryEntry => ({
+  diagram_id: diagramId,
   id: uuidV4(),
   name: (customName && customName.trim()) || generateSlug(2),
-  project_id: projectId,
   state,
   time: Date.now(),
   type
 });
-
 export const loadSavedEntries = async (
-  projectId: string | null = currentProjectId
+  diagramId: string | null = currentDiagramId
 ): Promise<HistoryEntry[]> => {
   try {
-    const entries = await api.getHistoryEntries('manual', projectId);
+    const entries = await api.getHistoryEntries('manual', diagramId);
     if (Array.isArray(entries)) {
-      if (currentProjectId === projectId) {
+      if (currentDiagramId === diagramId) {
         manual = entries;
       }
-      writeJSON(getManualKey(projectId), entries);
+      writeJSON(getManualKey(diagramId), entries);
       return entries;
     }
   } catch (err) {
@@ -109,34 +108,34 @@ export const loadSavedEntries = async (
 export const addManualEntry = (
   state: State,
   customName?: string,
-  projectId: string | null = currentProjectId
+  diagramId: string | null = currentDiagramId
 ): boolean => {
   if (manual.length > 0 && stateKey(manual[0].state) === stateKey(state)) {
-    projectState.showBookmarkDuplicate();
+    diagramState.showBookmarkDuplicate();
     return false;
   }
-  const entry = createEntry(state, 'manual', customName, projectId);
-  if (currentProjectId === projectId) {
+  const entry = createEntry(state, 'manual', customName, diagramId);
+  if (currentDiagramId === diagramId) {
     manual = [entry, ...manual];
   }
-  writeJSON(getManualKey(projectId), manual);
+  writeJSON(getManualKey(diagramId), manual);
   logEvent('history', { action: 'save', type: 'manual' });
 
   void api
     .createHistoryEntry({
+      diagramId,
       id: entry.id,
       name: entry.name || 'Untitled',
-      projectId,
       state: entry.state,
       time: entry.time,
       type: 'manual'
     })
     .then(() => {
-      projectState.showBookmarked();
+      diagramState.showBookmarked();
     })
     .catch((err) => {
       console.error('Failed to sync history entry to backend:', err);
-      projectState.showBookmarkError();
+      diagramState.showBookmarkError();
     });
 
   return true;
@@ -144,12 +143,12 @@ export const addManualEntry = (
 
 export const addAutoEntry = (
   state: State,
-  projectId: string | null = currentProjectId
+  diagramId: string | null = currentDiagramId
 ): boolean => {
   const currentEntries =
-    projectId === currentProjectId
+    diagramId === currentDiagramId
       ? autoEntries
-      : readJSON<HistoryEntry[]>(getAutoKey(projectId), []);
+      : readJSON<HistoryEntry[]>(getAutoKey(diagramId), []);
 
   if (currentEntries.length > 0 && stateKey(currentEntries[0].state) === stateKey(state)) {
     return false;
@@ -158,11 +157,11 @@ export const addAutoEntry = (
     currentEntries.length >= MAX_AUTO_HISTORY_LENGTH
       ? currentEntries.slice(0, MAX_AUTO_HISTORY_LENGTH - 1)
       : currentEntries;
-  const updated = [createEntry(state, 'auto', undefined, projectId), ...trimmed];
-  if (projectId === currentProjectId) {
+  const updated = [createEntry(state, 'auto', undefined, diagramId), ...trimmed];
+  if (diagramId === currentDiagramId) {
     autoEntries = updated;
   }
-  writeJSON(getAutoKey(projectId), updated);
+  writeJSON(getAutoKey(diagramId), updated);
   logEvent('history', { action: 'save', type: 'auto' });
   return true;
 };
@@ -177,7 +176,7 @@ export const setLoaderEntries = (entries: Optional<HistoryEntry, 'id'>[]): void 
 export const removeEntry = (id: string): void => {
   if (mode.value === 'manual') {
     manual = manual.filter((entry) => entry.id !== id);
-    writeJSON(getManualKey(currentProjectId), manual);
+    writeJSON(getManualKey(currentDiagramId), manual);
     logEvent('history', { action: 'clear', type: 'single' });
     void api.deleteHistoryEntry(id).catch((err) => {
       console.error('Failed to delete history entry from backend:', err);
@@ -186,7 +185,7 @@ export const removeEntry = (id: string): void => {
   }
   if (mode.value === 'auto') {
     autoEntries = autoEntries.filter((entry) => entry.id !== id);
-    writeJSON(getAutoKey(currentProjectId), autoEntries);
+    writeJSON(getAutoKey(currentDiagramId), autoEntries);
     logEvent('history', { action: 'clear', type: 'single' });
   }
 };
@@ -198,7 +197,7 @@ export const renameEntry = (id: string, name: string): void => {
   }
   if (mode.value === 'manual') {
     manual = manual.map((entry) => (entry.id === id ? { ...entry, name: trimmed } : entry));
-    writeJSON(getManualKey(currentProjectId), manual);
+    writeJSON(getManualKey(currentDiagramId), manual);
     logEvent('history', { action: 'rename' });
     void api.updateHistoryEntry(id, { name: trimmed }).catch((err) => {
       console.error('Failed to update history entry in backend:', err);
@@ -209,7 +208,7 @@ export const renameEntry = (id: string, name: string): void => {
     autoEntries = autoEntries.map((entry) =>
       entry.id === id ? { ...entry, name: trimmed } : entry
     );
-    writeJSON(getAutoKey(currentProjectId), autoEntries);
+    writeJSON(getAutoKey(currentDiagramId), autoEntries);
     logEvent('history', { action: 'rename' });
   }
 };
@@ -217,16 +216,16 @@ export const renameEntry = (id: string, name: string): void => {
 export const clearActive = (): void => {
   if (mode.value === 'manual') {
     manual = [];
-    writeJSON(getManualKey(currentProjectId), []);
+    writeJSON(getManualKey(currentDiagramId), []);
     logEvent('history', { action: 'clear', type: 'all' });
-    void api.clearHistoryEntries('manual', currentProjectId).catch((err) => {
+    void api.clearHistoryEntries('manual', currentDiagramId).catch((err) => {
       console.error('Failed to clear history in backend:', err);
     });
     return;
   }
   if (mode.value === 'auto') {
     autoEntries = [];
-    writeJSON(getAutoKey(currentProjectId), []);
+    writeJSON(getAutoKey(currentDiagramId), []);
     logEvent('history', { action: 'clear', type: 'all' });
   }
 };
@@ -247,30 +246,30 @@ export const restoreEntries = (data: HistoryEntry[]): RestoreResult => {
   const invalid = data.length - valid.length;
   let restored = 0;
 
-  // 1. Auto entries (localStorage for current project)
+  // 1. Auto entries (localStorage for current diagram)
   const incomingAuto = valid.filter((entry) => entry.type === 'auto');
   if (incomingAuto.length > 0) {
     const existingAutoIDs = autoEntries.map(({ id }) => id);
     const freshAuto = incomingAuto.filter(({ id }) => !existingAutoIDs.includes(id));
     restored += freshAuto.length;
     autoEntries = [...autoEntries, ...freshAuto].sort((a, b) => b.time - a.time);
-    writeJSON(getAutoKey(currentProjectId), autoEntries);
+    writeJSON(getAutoKey(currentDiagramId), autoEntries);
   }
 
-  // 2. Manual entries (SQLite sync for current project)
+  // 2. Manual entries (SQLite sync for current diagram)
   const incomingManual = valid.filter((entry) => entry.type === 'manual');
   if (incomingManual.length > 0) {
     const existingManualIDs = manual.map(({ id }) => id);
     const freshManual = incomingManual.filter(({ id }) => !existingManualIDs.includes(id));
     restored += freshManual.length;
     manual = [...manual, ...freshManual].sort((a, b) => b.time - a.time);
-    writeJSON(getManualKey(currentProjectId), manual);
+    writeJSON(getManualKey(currentDiagramId), manual);
     for (const entry of freshManual) {
       void api
         .createHistoryEntry({
+          diagramId: currentDiagramId,
           id: entry.id,
           name: entry.name || 'Untitled',
-          projectId: currentProjectId,
           state: entry.state,
           time: entry.time,
           type: 'manual'
@@ -290,10 +289,10 @@ const setIDs = (entries: HistoryEntry[]): HistoryEntry[] =>
 // One-time migration: re-reads localStorage so entries written by an older
 // version get ids, then persists and updates the reactive state.
 export const injectHistoryIDs = (): void => {
-  autoEntries = setIDs(readJSON<HistoryEntry[]>(getAutoKey(currentProjectId), []));
-  writeJSON(getAutoKey(currentProjectId), autoEntries);
-  manual = setIDs(readJSON<HistoryEntry[]>(getManualKey(currentProjectId), []));
-  writeJSON(getManualKey(currentProjectId), manual);
+  autoEntries = setIDs(readJSON<HistoryEntry[]>(getAutoKey(currentDiagramId), []));
+  writeJSON(getAutoKey(currentDiagramId), autoEntries);
+  manual = setIDs(readJSON<HistoryEntry[]>(getManualKey(currentDiagramId), []));
+  writeJSON(getManualKey(currentDiagramId), manual);
 };
 
 let autoSaveTimer: ReturnType<typeof setInterval> | undefined;
@@ -303,8 +302,8 @@ export const startAutoSave = (): (() => void) => {
   if (autoSaveTimer === undefined) {
     autoSaveTimer = setInterval(() => {
       const added = addAutoEntry($state.snapshot(inputState));
-      if (added || projectState.hasChanges) {
-        void projectState.save();
+      if (added || diagramState.hasChanges) {
+        void diagramState.save();
       }
     }, AUTO_SAVE_INTERVAL);
   }

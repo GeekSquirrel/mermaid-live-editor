@@ -12,7 +12,7 @@
     code,
     id,
     previewKind
-  }: { code: string; id: string; previewKind?: 'project' | 'bookmark' } = $props();
+  }: { code: string; id: string; previewKind?: 'diagram' | 'bookmark' } = $props();
 
   let containerEl = $state<HTMLDivElement | null>(null);
   let error = $state<string | null>(null);
@@ -61,8 +61,8 @@
     if (previewKind) {
       try {
         const stored =
-          previewKind === 'project'
-            ? await api.getProjectPreview(id, theme)
+          previewKind === 'diagram'
+            ? await api.getDiagramPreview(id, theme)
             : await api.getBookmarkPreview(id, theme);
         if (gen !== generation) return;
         if (stored) {
@@ -97,8 +97,8 @@
         const codeHash = await sha256Hex(code);
         if (gen === generation && codeHash) {
           const dto = { theme, codeHash, svg: res.svg };
-          void (previewKind === 'project'
-            ? api.uploadProjectPreview(id, dto)
+          void (previewKind === 'diagram'
+            ? api.uploadDiagramPreview(id, dto)
             : api.uploadBookmarkPreview(id, dto));
         }
       }

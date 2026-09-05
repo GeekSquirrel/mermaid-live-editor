@@ -9,7 +9,7 @@
   import { vsCodeLight } from '@fsegurai/codemirror-theme-vscode-light';
   import { basicSetup } from 'codemirror';
   import { mode } from 'mode-watcher';
-  import { projectState } from '$lib/util/projectState.svelte';
+  import { diagramState } from '$lib/util/diagramState.svelte';
   import { onMount } from 'svelte';
 
   let editorView: EditorView | undefined;
@@ -38,8 +38,8 @@
           themeCompartment.of([]),
           EditorView.domEventHandlers({
             blur() {
-              if (projectState.hasChanges) {
-                void projectState.save();
+              if (diagramState.hasChanges) {
+                void diagramState.save();
               }
             }
           }),

@@ -69,8 +69,8 @@ export type LoaderConfig =
 export type HistoryType = 'auto' | 'manual' | 'loader';
 export type HistoryEntry = {
   id: string;
-  projectId?: string | null;
-  project_id?: string | null;
+  diagramId?: string | null;
+  diagram_id?: string | null;
   state: State;
   time: number;
   url?: string;

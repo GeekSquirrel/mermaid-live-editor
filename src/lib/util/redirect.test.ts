@@ -19,14 +19,14 @@ describe('buildRedirectUrl', () => {
 
   it('should extract route and fragment from old hash format', () => {
     expect(buildRedirectUrl(mockLocation('https://mermaid.live/#/edit/pako:abc123'))).toBe(
-      '/edit#pako:abc123'
+      '/diagram#pako:abc123'
     );
   });
 
   it('should place search params before the hash fragment', () => {
     expect(
       buildRedirectUrl(mockLocation('https://mermaid.live/?utm_source=twitter#/edit/pako:abc123'))
-    ).toBe('/edit?utm_source=twitter#pako:abc123');
+    ).toBe('/diagram?utm_source=twitter#pako:abc123');
   });
 
   it('should handle hash with view route', () => {
@@ -48,6 +48,6 @@ describe('buildRedirectUrl', () => {
           'https://mermaid.live/?utm_source=gh&utm_medium=link&utm_campaign=test#/edit/pako:data'
         )
       )
-    ).toBe('/edit?utm_source=gh&utm_medium=link&utm_campaign=test#pako:data');
+    ).toBe('/diagram?utm_source=gh&utm_medium=link&utm_campaign=test#pako:data');
   });
 });

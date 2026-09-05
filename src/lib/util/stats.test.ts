@@ -8,35 +8,35 @@ describe('getAnalyticsUrl', () => {
   });
 
   it('should return origin and pathname for a simple URL', () => {
-    window.history.replaceState(null, '', '/edit');
+    window.history.replaceState(null, '', '/diagram');
     const url = getAnalyticsSafeUrl();
-    expect(url).toBe(`${window.location.origin}/edit`);
+    expect(url).toBe(`${window.location.origin}/diagram`);
   });
 
   it('should include search/query params (UTM parameters)', () => {
-    window.history.replaceState(null, '', '/edit?utm_source=github&utm_medium=docs');
+    window.history.replaceState(null, '', '/diagram?utm_source=github&utm_medium=docs');
     const url = getAnalyticsSafeUrl();
-    expect(url).toBe(`${window.location.origin}/edit?utm_source=github&utm_medium=docs`);
+    expect(url).toBe(`${window.location.origin}/diagram?utm_source=github&utm_medium=docs`);
   });
 
   it('should never include the hash', () => {
-    window.history.replaceState(null, '', '/edit#pako:someDiagramData');
+    window.history.replaceState(null, '', '/diagram#pako:someDiagramData');
     // replaceState doesn't set hash, so set it via location
     window.location.hash = '#pako:someDiagramData';
     const url = getAnalyticsSafeUrl();
     expect(url).not.toContain('#');
     expect(url).not.toContain('pako:');
-    expect(url).toBe(`${window.location.origin}/edit`);
+    expect(url).toBe(`${window.location.origin}/diagram`);
   });
 
   it('should include search params but exclude hash when both are present', () => {
-    window.history.replaceState(null, '', '/edit?utm_campaign=launch');
+    window.history.replaceState(null, '', '/diagram?utm_campaign=launch');
     window.location.hash = '#pako:diagramDataHere';
     const url = getAnalyticsSafeUrl();
     expect(url).not.toContain('#');
     expect(url).not.toContain('pako:');
     expect(url).toContain('utm_campaign=launch');
-    expect(url).toBe(`${window.location.origin}/edit?utm_campaign=launch`);
+    expect(url).toBe(`${window.location.origin}/diagram?utm_campaign=launch`);
   });
 
   it('should return just origin for root path with no params', () => {

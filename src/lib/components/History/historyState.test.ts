@@ -12,7 +12,7 @@ import {
   removeEntry,
   renameEntry,
   restoreEntries,
-  setCurrentProjectId,
+  setCurrentDiagramId,
   setLoaderEntries,
   setMode,
   startAutoSave,
@@ -424,9 +424,9 @@ describe('backend synchronization for saved entries', () => {
   });
 });
 
-describe('project-specific history isolation', () => {
+describe('diagram-specific history isolation', () => {
   beforeEach(() => {
-    setCurrentProjectId(null);
+    setCurrentDiagramId(null);
     setMode('manual');
     clearActive();
     setMode('auto');
@@ -434,33 +434,33 @@ describe('project-specific history isolation', () => {
     setMode('manual');
   });
 
-  it('isolates saved entries per project', () => {
-    setCurrentProjectId('proj-A');
+  it('isolates saved entries per diagram', () => {
+    setCurrentDiagramId('proj-A');
     addManualEntry(codeState('graph TD\n A1'), 'A-First');
 
-    setCurrentProjectId('proj-B');
+    setCurrentDiagramId('proj-B');
     expect(historyState.entries).toHaveLength(0);
     addManualEntry(codeState('graph TD\n B1'), 'B-First');
     expect(historyState.entries).toHaveLength(1);
     expect(historyState.entries[0].name).toBe('B-First');
 
-    setCurrentProjectId('proj-A');
+    setCurrentDiagramId('proj-A');
     expect(historyState.entries).toHaveLength(1);
     expect(historyState.entries[0].name).toBe('A-First');
   });
 
-  it('isolates timeline auto entries per project', () => {
+  it('isolates timeline auto entries per diagram', () => {
     setMode('auto');
-    setCurrentProjectId('proj-X');
+    setCurrentDiagramId('proj-X');
     addAutoEntry(codeState('graph TD\n X1'));
     expect(historyState.entries).toHaveLength(1);
 
-    setCurrentProjectId('proj-Y');
+    setCurrentDiagramId('proj-Y');
     expect(historyState.entries).toHaveLength(0);
     addAutoEntry(codeState('graph TD\n Y1'));
     expect(historyState.entries).toHaveLength(1);
 
-    setCurrentProjectId('proj-X');
+    setCurrentDiagramId('proj-X');
     expect(historyState.entries).toHaveLength(1);
   });
 });

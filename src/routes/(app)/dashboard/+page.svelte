@@ -1,10 +1,10 @@
 <script lang="ts">
   import Navbar from '$/components/Navbar.svelte';
-  import ProjectCardPreview from '$/components/ProjectCardPreview.svelte';
+  import DiagramCardPreview from '$/components/DiagramCardPreview.svelte';
   import { Button } from '$/components/ui/button';
   import * as Dialog from '$/components/ui/dialog';
   import { Switch } from '$/components/ui/switch';
-  import { api, type Project, type Workspace } from '$lib/services/api';
+  import { api, type Diagram, type Workspace } from '$lib/services/api';
   import { mode, setMode } from 'mode-watcher';
   import { toast } from 'svelte-sonner';
   import { fade, slide } from 'svelte/transition';
@@ -26,13 +26,13 @@
   import RefreshIcon from '~icons/material-symbols/refresh-rounded';
   import SearchIcon from '~icons/material-symbols/search-rounded';
 
-  const SIDEBAR_KEY = 'projects.sidebarOpen';
-  const WORKSPACE_KEY = 'projects.currentWorkspaceId';
-  const SIDEBAR_WIDTH_KEY = 'projects.sidebarWidth';
+  const SIDEBAR_KEY = 'diagrams.sidebarOpen';
+  const WORKSPACE_KEY = 'diagrams.currentWorkspaceId';
+  const SIDEBAR_WIDTH_KEY = 'diagrams.sidebarWidth';
   const SIDEBAR_MIN_WIDTH = 220;
   const SIDEBAR_MAX_WIDTH = 440;
 
-  let projects = $state<Project[]>([]);
+  let diagrams = $state<Diagram[]>([]);
   let workspaces = $state<Workspace[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -59,7 +59,7 @@
 
   // Inline delete confirmation: the row / card itself shows the overlay
   let pendingDeleteWorkspaceId = $state<string | null>(null);
-  let pendingDeleteProjectId = $state<string | null>(null);
+  let pendingDeleteDiagramId = $state<string | null>(null);
 
   // Styled confirmation dialog (multi-select batch delete)
   let confirmOpen = $state(false);
@@ -83,15 +83,15 @@
     }
   };
 
-  const loadProjects = async () => {
+  const loadDiagrams = async () => {
     loading = true;
     error = null;
     try {
-      projects = await api.getProjects();
+      diagrams = await api.getDiagrams();
       selectedIds = [];
       selectMode = false;
     } catch (err) {
-      console.error('Failed to load projects:', err);
+      console.error('Failed to load diagrams:', err);
       error = err instanceof Error ? err.message : 'Unable to connect to backend server';
     } finally {
       loading = false;
@@ -126,7 +126,7 @@
     if (storedWorkspace) {
       currentWorkspaceId = storedWorkspace;
     }
-    void loadProjects();
+    void loadDiagrams();
     void loadWorkspaces().then((list) => {
       // Deep link from the editor breadcrumb: /dashboard?workspace=<id>
       const wsParam = new URLSearchParams(window.location.search).get('workspace');
@@ -359,23 +359,23 @@
     }
   };
 
-  const requestDeleteProject = (project: Project) => {
-    pendingDeleteProjectId = project.id;
+  const requestDeleteDiagram = (diagram: Diagram) => {
+    pendingDeleteDiagramId = diagram.id;
   };
 
-  const cancelDeleteProject = () => {
-    pendingDeleteProjectId = null;
+  const cancelDeleteDiagram = () => {
+    pendingDeleteDiagramId = null;
   };
 
-  const confirmDeleteProject = async () => {
-    const id = pendingDeleteProjectId;
+  const confirmDeleteDiagram = async () => {
+    const id = pendingDeleteDiagramId;
     if (!id) {
       return;
     }
-    pendingDeleteProjectId = null;
+    pendingDeleteDiagramId = null;
     try {
-      await api.deleteProject(id);
-      projects = projects.filter((p) => p.id !== id);
+      await api.deleteDiagram(id);
+      diagrams = diagrams.filter((p) => p.id !== id);
       selectedIds = selectedIds.filter((selected) => selected !== id);
     } catch (err) {
       toast.error(`Failed to delete: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -387,7 +387,7 @@
     selectedIds = [];
   };
 
-  const toggleProjectSelection = (id: string) => {
+  const toggleDiagramSelection = (id: string) => {
     selectedIds = selectedIds.includes(id)
       ? selectedIds.filter((selected) => selected !== id)
       : [...selectedIds, id];
@@ -399,27 +399,27 @@
       return;
     }
     requestConfirm(
-      'Delete projects',
-      `Are you sure you want to delete ${idsToDelete.length} selected project(s)? This action cannot be undone.`,
+      'Delete diagrams',
+      `Are you sure you want to delete ${idsToDelete.length} selected diagram(s)? This action cannot be undone.`,
       async () => {
         const deletedIds: string[] = [];
         let failed = 0;
         for (const id of idsToDelete) {
           try {
-            await api.deleteProject(id);
+            await api.deleteDiagram(id);
             deletedIds.push(id);
           } catch {
             failed++;
           }
         }
-        projects = projects.filter((p) => !deletedIds.includes(p.id));
+        diagrams = diagrams.filter((p) => !deletedIds.includes(p.id));
         selectedIds = selectedIds.filter((id) => !deletedIds.includes(id));
         if (failed > 0) {
           toast.error(
-            `Failed to delete ${failed} of ${idsToDelete.length} project(s). Please try again.`
+            `Failed to delete ${failed} of ${idsToDelete.length} diagram(s). Please try again.`
           );
         } else {
-          toast.success(`Deleted ${deletedIds.length} project(s)`);
+          toast.success(`Deleted ${deletedIds.length} diagram(s)`);
         }
       }
     );
@@ -439,20 +439,20 @@
     }
   };
 
-  // The backend guarantees every project belongs to an existing workspace
-  const workspaceProjects = $derived(projects.filter((p) => p.workspace_id === currentWorkspaceId));
+  // The backend guarantees every diagram belongs to an existing workspace
+  const workspaceDiagrams = $derived(diagrams.filter((p) => p.workspace_id === currentWorkspaceId));
 
-  const filteredProjects = $derived(
-    workspaceProjects.filter(
+  const filteredDiagrams = $derived(
+    workspaceDiagrams.filter(
       (p) =>
         p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.code.toLowerCase().includes(searchQuery.toLowerCase())
     )
   );
 
-  const projectCounts = $derived.by(() => {
+  const diagramCounts = $derived.by(() => {
     const counts = new SvelteMap<string, number>();
-    for (const p of projects) {
+    for (const p of diagrams) {
       const id = p.workspace_id || '';
       counts.set(id, (counts.get(id) || 0) + 1);
     }
@@ -464,11 +464,11 @@
   );
 
   const allSelected = $derived(
-    filteredProjects.length > 0 && filteredProjects.every((p) => selectedIds.includes(p.id))
+    filteredDiagrams.length > 0 && filteredDiagrams.every((p) => selectedIds.includes(p.id))
   );
 
   const toggleSelectAll = () => {
-    selectedIds = allSelected ? [] : filteredProjects.map((p) => p.id);
+    selectedIds = allSelected ? [] : filteredDiagrams.map((p) => p.id);
   };
 
   const formatDate = (ts: number) => {
@@ -505,14 +505,14 @@
       class="pointer-events-none absolute inset-y-0 left-3 my-auto size-4 text-muted-foreground" />
     <input
       type="text"
-      placeholder="Search projects..."
+      placeholder="Search diagrams..."
       bind:this={searchInputEl}
       bind:value={searchQuery}
       class="h-9 w-full rounded-lg border border-border bg-card pr-3 pl-9 text-sm text-foreground shadow-xs transition-all placeholder:text-muted-foreground hover:border-primary/50 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none" />
   </div>
 {/snippet}
 
-{#snippet cardBody(project: Project, selected: boolean, isSelectMode: boolean)}
+{#snippet cardBody(diagram: Diagram, selected: boolean, isSelectMode: boolean)}
   {#if isSelectMode}
     <div
       class={[
@@ -531,17 +531,17 @@
     <div class="min-w-0 flex-1">
       <h2
         class="truncate font-semibold text-card-foreground group-hover:text-primary"
-        title={project.title || 'Untitled Project'}>
-        {project.title || 'Untitled Project'}
+        title={diagram.title || 'Untitled Diagram'}>
+        {diagram.title || 'Untitled Diagram'}
       </h2>
       <p class="mt-0.5 text-xs text-muted-foreground">
-        Updated {formatDate(project.updated_at)}
+        Updated {formatDate(diagram.updated_at)}
       </p>
     </div>
   </div>
 
   <div class="my-2 min-h-0 flex-1 sm:my-3">
-    <ProjectCardPreview code={project.code} id={project.id} previewKind="project" />
+    <DiagramCardPreview code={diagram.code} id={diagram.id} previewKind="diagram" />
   </div>
 
   {#if !isSelectMode}
@@ -551,7 +551,7 @@
         variant="destructive"
         size="sm"
         class="h-7 px-2 text-xs sm:h-8"
-        onclick={() => requestDeleteProject(project)}>
+        onclick={() => requestDeleteDiagram(diagram)}>
         <DeleteIcon class="mr-1 size-3.5" />
         Delete
       </Button>
@@ -559,7 +559,7 @@
         variant="default"
         size="sm"
         class="h-7 gap-1 px-2.5 text-xs sm:h-8 sm:px-3"
-        href={`/edit?projectId=${project.id}`}>
+        href={`/diagram?id=${diagram.id}`}>
         <OpenIcon class="size-3.5" />
         Open Editor
       </Button>
@@ -580,18 +580,20 @@
   <Navbar leading={sidebarToggle} center={searchBox} />
 
   <div class="relative flex min-h-0 flex-1 overflow-hidden">
-    {#if sidebarOpen}
-      <!-- Mobile backdrop -->
-      <button
-        type="button"
-        class="absolute inset-0 z-30 bg-black/40 md:hidden"
-        aria-label="Close sidebar"
-        onclick={toggleSidebar}></button>
-
-      <aside
-        transition:fade={{ duration: 120 }}
-        style={`--sidebar-w: ${sidebarWidth}px`}
-        class="absolute inset-y-0 left-0 z-40 flex w-full shrink-0 flex-col border-r border-border bg-card shadow-lg md:relative md:z-auto md:w-[var(--sidebar-w)] md:shadow-none">
+    <!-- Always mounted so the expand/collapse transition (slide on mobile,
+         width push on desktop) can animate; inert when hidden -->
+    <aside
+      style={`--sidebar-w: ${sidebarWidth}px`}
+      inert={!sidebarOpen}
+      class={[
+        'absolute inset-y-0 left-0 z-40 flex w-full shrink-0 flex-col overflow-hidden border-r border-border bg-card shadow-lg md:relative md:z-auto md:shadow-none',
+        'transition-[width,translate] duration-200 ease-in-out',
+        resizingSidebar ? 'md:transition-none' : '',
+        sidebarOpen
+          ? 'translate-x-0 md:w-[var(--sidebar-w)]'
+          : '-translate-x-full md:w-0 md:border-r-0'
+      ]}>
+      <div class="flex w-full min-w-0 flex-1 flex-col md:w-[var(--sidebar-w)] md:shrink-0">
         <div class="px-3 pt-3 pb-1">
           <h2 class="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
             Workspaces
@@ -677,7 +679,7 @@
                   <span class="truncate" title={workspace.name}>{workspace.name}</span>
                   <span
                     class="shrink-0 rounded-full bg-muted px-1.5 text-xs text-muted-foreground group-hover:invisible">
-                    {projectCounts.get(workspace.id) || 0}
+                    {diagramCounts.get(workspace.id) || 0}
                   </span>
                 </button>
                 <div class="hidden shrink-0 items-center gap-0.5 pr-1.5 group-hover:flex">
@@ -740,22 +742,22 @@
             checked={mode.current === 'dark'}
             onCheckedChange={(dark) => setMode(dark ? 'dark' : 'light')} />
         </div>
+      </div>
 
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex -->
-        <!-- ARIA separator resize-handle pattern (pointer + arrow keys) -->
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize sidebar"
-          tabindex="0"
-          class="absolute inset-y-0 right-0 z-20 hidden w-1 cursor-col-resize transition-colors hover:bg-accent/30 md:block {resizingSidebar
-            ? 'bg-accent/40'
-            : ''}"
-          onpointerdown={startResize}
-          onkeydown={handleResizeKeydown}>
-        </div>
-      </aside>
-    {/if}
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex -->
+      <!-- ARIA separator resize-handle pattern (pointer + arrow keys) -->
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize sidebar"
+        tabindex="0"
+        class="absolute inset-y-0 right-0 z-20 hidden w-1 cursor-col-resize transition-colors hover:bg-accent/30 md:block {resizingSidebar
+          ? 'bg-accent/40'
+          : ''}"
+        onpointerdown={startResize}
+        onkeydown={handleResizeKeydown}>
+      </div>
+    </aside>
 
     <main class="flex min-w-0 flex-1 flex-col overflow-hidden">
       <div class="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
@@ -767,7 +769,7 @@
               size="sm"
               class="h-9 w-9 p-0"
               onclick={() => {
-                void loadProjects();
+                void loadDiagrams();
                 void loadWorkspaces();
               }}
               title="Refresh list">
@@ -789,7 +791,7 @@
                 size="sm"
                 class="h-9 w-9 p-0"
                 onclick={toggleSelectAll}
-                disabled={filteredProjects.length === 0}
+                disabled={filteredDiagrams.length === 0}
                 title={allSelected ? 'Deselect all' : 'Select all'}>
                 {#if allSelected}
                   <CheckBoxIcon class="size-4" />
@@ -817,9 +819,9 @@
               variant="accent"
               size="sm"
               class="h-9 gap-1 whitespace-nowrap"
-              href={`/edit?workspaceId=${currentWorkspaceId}`}>
+              href={`/diagram?workspaceId=${currentWorkspaceId}`}>
               <AddIcon class="size-4" />
-              New Project
+              New Diagram
             </Button>
           {/if}
         </div>
@@ -832,7 +834,7 @@
               <div
                 class="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent">
               </div>
-              <span class="text-sm">Loading projects...</span>
+              <span class="text-sm">Loading diagrams...</span>
             </div>
           </div>
         {:else if error}
@@ -841,7 +843,7 @@
             <p class="mt-1 text-xs text-muted-foreground">
               Please make sure the backend server (http://localhost:8080) is running
             </p>
-            <Button variant="outline" size="sm" class="mt-4" onclick={() => void loadProjects()}>
+            <Button variant="outline" size="sm" class="mt-4" onclick={() => void loadDiagrams()}>
               Retry
             </Button>
           </div>
@@ -850,74 +852,74 @@
             class="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border p-8 text-center">
             <p class="text-base font-medium">No workspaces yet.</p>
             <p class="mt-1 text-sm text-muted-foreground">
-              Create a workspace to start organizing your projects.
+              Create a workspace to start organizing your diagrams.
             </p>
             <Button variant="accent" size="sm" class="mt-4 gap-1" onclick={startCreateWorkspace}>
               <AddIcon class="size-4" />
               New Workspace
             </Button>
           </div>
-        {:else if filteredProjects.length === 0}
+        {:else if filteredDiagrams.length === 0}
           <div
             class="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border p-8 text-center">
             {#if searchQuery}
-              <p class="text-muted-foreground">No projects found matching "{searchQuery}"</p>
+              <p class="text-muted-foreground">No diagrams found matching "{searchQuery}"</p>
               <Button variant="ghost" size="sm" class="mt-2" onclick={() => (searchQuery = '')}>
                 Clear search
               </Button>
             {:else}
-              <p class="text-base font-medium">No projects in this workspace yet.</p>
+              <p class="text-base font-medium">No diagrams in this workspace yet.</p>
               <p class="mt-1 text-sm text-muted-foreground">
-                Created projects will be automatically synchronized to SQLite database
+                Created diagrams will be automatically synchronized to SQLite database
               </p>
               <Button
                 variant="accent"
                 size="sm"
-                href={`/edit?workspaceId=${currentWorkspaceId}`}
+                href={`/diagram?workspaceId=${currentWorkspaceId}`}
                 class="mt-4 gap-1">
                 <AddIcon class="size-4" />
-                Create First Project
+                Create First Diagram
               </Button>
             {/if}
           </div>
         {:else}
-          <div class="projects-grid">
-            {#each filteredProjects as project (project.id)}
-              {@const selected = selectedIds.includes(project.id)}
+          <div class="diagrams-grid">
+            {#each filteredDiagrams as diagram (diagram.id)}
+              {@const selected = selectedIds.includes(diagram.id)}
               {#if selectMode}
                 <div
                   role="checkbox"
                   aria-checked={selected}
                   tabindex="0"
-                  aria-label={project.title || 'Untitled Project'}
+                  aria-label={diagram.title || 'Untitled Diagram'}
                   class={[
                     'group relative flex aspect-square w-full cursor-pointer flex-col justify-between rounded-lg border p-3.5 transition-all sm:p-4',
                     selected
                       ? 'border-primary bg-primary/5 ring-2 ring-primary'
                       : 'border-border bg-card hover:border-primary/50'
                   ]}
-                  onclick={() => toggleProjectSelection(project.id)}
+                  onclick={() => toggleDiagramSelection(diagram.id)}
                   onkeydown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      toggleProjectSelection(project.id);
+                      toggleDiagramSelection(diagram.id);
                     }
                   }}>
-                  {@render cardBody(project, selected, true)}
+                  {@render cardBody(diagram, selected, true)}
                 </div>
               {:else}
                 <div
                   class="group relative flex aspect-square w-full flex-col justify-between rounded-lg border border-border bg-card p-3.5 transition-all hover:border-primary/50 hover:shadow-md sm:p-4">
-                  {@render cardBody(project, selected, false)}
+                  {@render cardBody(diagram, selected, false)}
 
-                  {#if pendingDeleteProjectId === project.id}
+                  {#if pendingDeleteDiagramId === diagram.id}
                     <div
                       transition:fade={{ duration: 120 }}
                       class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 rounded-lg bg-background/92 p-4 text-center backdrop-blur-[2px]">
                       <DeleteIcon class="size-6 text-destructive" />
-                      <p class="text-sm font-semibold text-foreground">Delete this project?</p>
+                      <p class="text-sm font-semibold text-foreground">Delete this diagram?</p>
                       <p class="text-xs text-muted-foreground">
-                        "{project.title || 'Untitled Project'}" will be permanently removed. This
+                        "{diagram.title || 'Untitled Diagram'}" will be permanently removed. This
                         action cannot be undone.
                       </p>
                       <div class="mt-2 flex items-center gap-2">
@@ -925,14 +927,14 @@
                           variant="outline"
                           size="sm"
                           class="h-7 text-xs"
-                          onclick={cancelDeleteProject}>
+                          onclick={cancelDeleteDiagram}>
                           Cancel
                         </Button>
                         <Button
                           variant="destructive"
                           size="sm"
                           class="h-7 gap-1 text-xs"
-                          onclick={() => void confirmDeleteProject()}>
+                          onclick={() => void confirmDeleteDiagram()}>
                           <DeleteIcon class="size-3.5" />
                           Delete
                         </Button>
@@ -964,14 +966,14 @@
 
 <style>
   /* Card width never drops below 24rem; columns reduce automatically down to one */
-  .projects-grid {
+  .diagrams-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(24rem, 100%), 1fr));
     gap: 1rem;
   }
 
   @media (min-width: 640px) {
-    .projects-grid {
+    .diagrams-grid {
       gap: 1.5rem;
     }
   }

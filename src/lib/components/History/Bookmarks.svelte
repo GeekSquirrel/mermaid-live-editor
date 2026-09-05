@@ -1,6 +1,6 @@
 <script lang="ts">
   import Card from '$lib/components/Card/Card.svelte';
-  import ProjectCardPreview from '$lib/components/ProjectCardPreview.svelte';
+  import DiagramCardPreview from '$lib/components/DiagramCardPreview.svelte';
   import type { HistoryEntry, State } from '$lib/types';
   import { notify, prompt } from '$lib/util/notify';
   import { serializeState } from '$lib/util/serde';
@@ -151,7 +151,7 @@
           <div
             class="group flex flex-col rounded-lg border border-border bg-card p-2 transition-all hover:border-primary/50 hover:shadow-md">
             <div class="h-28 shrink-0 overflow-hidden rounded-md border border-border/40">
-              <ProjectCardPreview code={state?.code ?? ''} {id} previewKind="bookmark" />
+              <DiagramCardPreview code={state?.code ?? ''} {id} previewKind="bookmark" />
             </div>
 
             <div class="mt-2 flex min-w-0 items-center gap-1 overflow-hidden">
