@@ -64,7 +64,7 @@
     <!-- Desktop: Dashboard / Workspace / Project; mobile: Workspace / Project -->
     <a
       href={resolve('/dashboard', {})}
-      class="hidden shrink-0 font-medium text-muted-foreground transition-colors hover:text-foreground md:inline">
+      class="hidden shrink-0 truncate rounded px-1 py-0.5 font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-accent md:inline">
       Dashboard
     </a>
     <span class="hidden text-muted-foreground/40 md:inline">/</span>
@@ -72,7 +72,7 @@
       href={projectState.workspaceId
         ? `${resolve('/dashboard', {})}?workspace=${projectState.workspaceId}`
         : resolve('/dashboard', {})}
-      class="max-w-[100px] shrink-0 truncate font-medium text-muted-foreground transition-colors hover:text-accent sm:max-w-[160px]"
+      class="max-w-[100px] shrink-0 truncate rounded px-1 py-0.5 font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-accent sm:max-w-[160px]"
       title={`Open workspace "${workspaceName}" in dashboard`}>
       {workspaceName}
     </a>
@@ -86,13 +86,13 @@
         onblur={commitTitle}
         onkeydown={handleKeyDown}
         placeholder="Untitled Project"
-        class="xs:w-32 h-7 w-24 rounded border border-input bg-background px-2 py-0.5 text-xs font-medium focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none sm:w-48 sm:text-sm" />
+        class="xs:w-32 h-7 w-24 rounded-md border border-border bg-background px-2 py-0.5 text-xs font-medium shadow-xs transition-colors focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none sm:w-48 sm:text-sm" />
     {:else}
       <button
         type="button"
         onclick={startEditing}
         title="Click to rename project"
-        class="xs:max-w-[120px] max-w-[80px] truncate rounded px-1 py-0.5 text-left font-medium transition-colors hover:bg-muted/60 hover:text-accent sm:max-w-[200px]">
+        class="xs:max-w-[120px] max-w-[80px] truncate rounded px-1 py-0.5 text-left font-medium text-foreground transition-colors hover:bg-muted/60 hover:text-accent sm:max-w-[200px]">
         {projectState.title || 'Untitled Project'}
       </button>
     {/if}
