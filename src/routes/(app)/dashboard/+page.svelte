@@ -1,6 +1,6 @@
 <script lang="ts">
   import Navbar from '$/components/Navbar.svelte';
-  import DiagramCardPreview from '$/components/DiagramCardPreview.svelte';
+  import DiagramCard from '$/components/DiagramCard.svelte';
   import { Button } from '$/components/ui/button';
   import * as Dialog from '$/components/ui/dialog';
   import { Switch } from '$/components/ui/switch';
@@ -19,7 +19,6 @@
   import ChecklistIcon from '~icons/material-symbols/checklist-rounded';
   import ContrastIcon from '~icons/material-symbols/contrast';
   import DeleteIcon from '~icons/material-symbols/delete-outline-rounded';
-  import OpenIcon from '~icons/material-symbols/open-in-new-rounded';
   import PencilIcon from '~icons/material-symbols/edit-outline-rounded';
   import PanelCloseIcon from '~icons/material-symbols/left-panel-close-outline-rounded';
   import PanelOpenIcon from '~icons/material-symbols/left-panel-open-outline-rounded';
@@ -57,9 +56,8 @@
   let renameValue = $state('');
   let renameInputEl = $state<HTMLInputElement | null>(null);
 
-  // Inline delete confirmation: the row / card itself shows the overlay
+  // Inline delete confirmation: the sidebar row itself shows the overlay
   let pendingDeleteWorkspaceId = $state<string | null>(null);
-  let pendingDeleteDiagramId = $state<string | null>(null);
 
   // Styled confirmation dialog (multi-select batch delete)
   let confirmOpen = $state(false);
@@ -368,24 +366,49 @@
     }
   };
 
-  const requestDeleteDiagram = (diagram: Diagram) => {
-    pendingDeleteDiagramId = diagram.id;
+  const handleRenameDiagram = async (diagram: Diagram, title: string) => {
+    try {
+      const updated = await api.updateDiagram(diagram.id, { title });
+      diagrams = diagrams.map((p) => (p.id === diagram.id ? updated : p));
+    } catch (err) {
+      toast.error(`Failed to rename: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
   };
 
-  const cancelDeleteDiagram = () => {
-    pendingDeleteDiagramId = null;
+  const handleDuplicateDiagram = async (diagram: Diagram): Promise<Diagram | undefined> => {
+    try {
+      const copy = await api.createDiagram({
+        title: `${diagram.title || 'Untitled Diagram'} (copy)`,
+        code: diagram.code,
+        workspace_id: diagram.workspace_id ?? currentWorkspaceId
+      });
+      diagrams = [...diagrams, copy];
+      toast.success(`Duplicated "${diagram.title || 'Untitled Diagram'}"`);
+      return copy;
+    } catch (err) {
+      toast.error(`Failed to duplicate: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
   };
 
-  const confirmDeleteDiagram = async () => {
-    const id = pendingDeleteDiagramId;
-    if (!id) {
+  const handleMoveDiagram = async (diagram: Diagram, workspaceId: string) => {
+    if (diagram.workspace_id === workspaceId) {
       return;
     }
-    pendingDeleteDiagramId = null;
     try {
-      await api.deleteDiagram(id);
-      diagrams = diagrams.filter((p) => p.id !== id);
-      selectedIds = selectedIds.filter((selected) => selected !== id);
+      const updated = await api.updateDiagram(diagram.id, { workspace_id: workspaceId });
+      diagrams = diagrams.map((p) => (p.id === diagram.id ? updated : p));
+      const target = workspaces.find((w) => w.id === workspaceId);
+      toast.success(`Moved to "${target?.name ?? 'workspace'}"`);
+    } catch (err) {
+      toast.error(`Failed to move: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleDeleteDiagram = async (diagram: Diagram) => {
+    try {
+      await api.deleteDiagram(diagram.id);
+      diagrams = diagrams.filter((p) => p.id !== diagram.id);
+      selectedIds = selectedIds.filter((selected) => selected !== diagram.id);
     } catch (err) {
       toast.error(`Failed to delete: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
@@ -479,17 +502,6 @@
   const toggleSelectAll = () => {
     selectedIds = allSelected ? [] : filteredDiagrams.map((p) => p.id);
   };
-
-  const formatDate = (ts: number) => {
-    if (!ts) return '';
-    return new Date(ts).toLocaleString(undefined, {
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
 </script>
 
 {#snippet sidebarToggle()}
@@ -519,61 +531,6 @@
       bind:value={searchQuery}
       class="h-9 w-full rounded-lg border border-border bg-card pr-3 pl-9 text-sm text-foreground shadow-xs transition-all placeholder:text-muted-foreground hover:border-primary/50 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none" />
   </div>
-{/snippet}
-
-{#snippet cardBody(diagram: Diagram, selected: boolean, isSelectMode: boolean)}
-  {#if isSelectMode}
-    <div
-      class={[
-        'absolute top-2 right-2 z-10 flex size-6 items-center justify-center rounded-md border transition-colors',
-        selected
-          ? 'border-primary bg-primary text-primary-foreground'
-          : 'border-border bg-background/80'
-      ]}>
-      {#if selected}
-        <CheckBoxIcon class="size-4" />
-      {/if}
-    </div>
-  {/if}
-
-  <div class="flex shrink-0 items-start justify-between gap-2">
-    <div class="min-w-0 flex-1">
-      <h2
-        class="truncate font-semibold text-card-foreground group-hover:text-primary"
-        title={diagram.title || 'Untitled Diagram'}>
-        {diagram.title || 'Untitled Diagram'}
-      </h2>
-      <p class="mt-0.5 text-xs text-muted-foreground">
-        Updated {formatDate(diagram.updated_at)}
-      </p>
-    </div>
-  </div>
-
-  <div class="my-2 min-h-0 flex-1 sm:my-3">
-    <DiagramCardPreview code={diagram.code} id={diagram.id} previewKind="diagram" />
-  </div>
-
-  {#if !isSelectMode}
-    <div
-      class="flex shrink-0 items-center justify-end gap-2 border-t border-border/50 pt-2.5 sm:pt-3">
-      <Button
-        variant="destructive"
-        size="sm"
-        class="h-7 px-2 text-xs sm:h-8"
-        onclick={() => requestDeleteDiagram(diagram)}>
-        <DeleteIcon class="mr-1 size-3.5" />
-        Delete
-      </Button>
-      <Button
-        variant="default"
-        size="sm"
-        class="h-7 gap-1 px-2.5 text-xs sm:h-8 sm:px-3"
-        href={`/diagram?id=${diagram.id}`}>
-        <OpenIcon class="size-3.5" />
-        Open Editor
-      </Button>
-    </div>
-  {/if}
 {/snippet}
 
 <svelte:window
@@ -895,63 +852,16 @@
           <div class="diagrams-grid">
             {#each filteredDiagrams as diagram (diagram.id)}
               {@const selected = selectedIds.includes(diagram.id)}
-              {#if selectMode}
-                <div
-                  role="checkbox"
-                  aria-checked={selected}
-                  tabindex="0"
-                  aria-label={diagram.title || 'Untitled Diagram'}
-                  class={[
-                    'group relative flex aspect-square w-full cursor-pointer flex-col justify-between rounded-lg border p-3.5 transition-all sm:p-4',
-                    selected
-                      ? 'border-primary bg-primary/5 ring-2 ring-primary'
-                      : 'border-border bg-card hover:border-primary/50'
-                  ]}
-                  onclick={() => toggleDiagramSelection(diagram.id)}
-                  onkeydown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      toggleDiagramSelection(diagram.id);
-                    }
-                  }}>
-                  {@render cardBody(diagram, selected, true)}
-                </div>
-              {:else}
-                <div
-                  class="group relative flex aspect-square w-full flex-col justify-between rounded-lg border border-border bg-card p-3.5 transition-all hover:border-primary/50 hover:shadow-md sm:p-4">
-                  {@render cardBody(diagram, selected, false)}
-
-                  {#if pendingDeleteDiagramId === diagram.id}
-                    <div
-                      transition:fade={{ duration: 120 }}
-                      class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 rounded-lg bg-background/92 p-4 text-center backdrop-blur-[2px]">
-                      <DeleteIcon class="size-6 text-destructive" />
-                      <p class="text-sm font-semibold text-foreground">Delete this diagram?</p>
-                      <p class="text-xs text-muted-foreground">
-                        "{diagram.title || 'Untitled Diagram'}" will be permanently removed. This
-                        action cannot be undone.
-                      </p>
-                      <div class="mt-2 flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          class="h-7 text-xs"
-                          onclick={cancelDeleteDiagram}>
-                          Cancel
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          class="h-7 gap-1 text-xs"
-                          onclick={() => void confirmDeleteDiagram()}>
-                          <DeleteIcon class="size-3.5" />
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  {/if}
-                </div>
-              {/if}
+              <DiagramCard
+                {diagram}
+                {workspaces}
+                {selectMode}
+                {selected}
+                onrename={handleRenameDiagram}
+                onduplicate={handleDuplicateDiagram}
+                onmove={handleMoveDiagram}
+                ondelete={handleDeleteDiagram}
+                ontoggleselect={toggleDiagramSelection} />
             {/each}
           </div>
         {/if}
