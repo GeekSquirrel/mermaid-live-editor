@@ -4,6 +4,7 @@ export interface Project {
   id: string;
   title: string;
   code: string;
+  workspace_id?: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -11,11 +12,28 @@ export interface Project {
 export interface CreateProjectDto {
   title: string;
   code: string;
+  workspace_id?: string | null;
 }
 
 export interface UpdateProjectDto {
   title?: string;
   code?: string;
+  workspace_id?: string | null;
+}
+
+export interface Workspace {
+  id: string;
+  name: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CreateWorkspaceDto {
+  name: string;
+}
+
+export interface UpdateWorkspaceDto {
+  name: string;
 }
 
 export interface CreateHistoryDto {
@@ -185,6 +203,12 @@ export const api = {
       body: JSON.stringify(data)
     }),
 
+  createWorkspace: (data: CreateWorkspaceDto): Promise<Workspace> =>
+    request<Workspace>('/workspaces', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
   deleteHistoryEntry: (id: string): Promise<{ deleted: boolean }> =>
     request<{ deleted: boolean }>(`/history/${id}`, {
       method: 'DELETE'
@@ -192,6 +216,11 @@ export const api = {
 
   deleteProject: (id: string): Promise<{ deleted: boolean }> =>
     request<{ deleted: boolean }>(`/projects/${id}`, {
+      method: 'DELETE'
+    }),
+
+  deleteWorkspace: (id: string): Promise<{ deleted: boolean }> =>
+    request<{ deleted: boolean }>(`/workspaces/${id}`, {
       method: 'DELETE'
     }),
 
@@ -213,6 +242,8 @@ export const api = {
 
   getProjects: (): Promise<Project[]> => request<Project[]>('/projects'),
 
+  getWorkspaces: (): Promise<Workspace[]> => request<Workspace[]>('/workspaces'),
+
   updateHistoryEntry: (id: string, data: UpdateHistoryDto): Promise<HistoryEntry> =>
     request<HistoryEntry>(`/history/${id}`, {
       method: 'PUT',
@@ -221,6 +252,12 @@ export const api = {
 
   updateProject: (id: string, data: UpdateProjectDto): Promise<Project> =>
     request<Project>(`/projects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+  updateWorkspace: (id: string, data: UpdateWorkspaceDto): Promise<Workspace> =>
+    request<Workspace>(`/workspaces/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     }),

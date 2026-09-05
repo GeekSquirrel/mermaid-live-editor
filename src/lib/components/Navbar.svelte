@@ -17,16 +17,29 @@
   interface Props {
     mobileToggle?: Snippet;
     children?: Snippet;
+    /** Rendered between the leading button and the breadcrumb; defaults to the main menu popover. */
+    leading?: Snippet;
+    /** Rendered in the center of the navbar (e.g. the projects search input). */
+    center?: Snippet;
   }
 
-  let { children, mobileToggle }: Props = $props();
+  let { children, mobileToggle, leading, center }: Props = $props();
 </script>
 
-<nav class="z-50 flex items-center justify-between p-4 sm:p-6">
-  <div class="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-    <MainMenu />
+<nav class="z-50 flex items-center justify-between gap-2 p-4 sm:p-6">
+  <div class={['flex min-w-0 items-center gap-2 overflow-hidden', !center && 'flex-1']}>
+    {#if leading}
+      {@render leading()}
+    {:else}
+      <MainMenu />
+    {/if}
     <ProjectBreadcrumb />
   </div>
+  {#if center}
+    <div class="flex min-w-0 flex-1 justify-center">
+      {@render center()}
+    </div>
+  {/if}
   <div
     id="menu"
     class="hidden flex-nowrap items-center justify-between gap-3 overflow-visible md:flex">
