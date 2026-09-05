@@ -175,11 +175,20 @@
     }
   };
 
+  // Matches the aside's md: breakpoint where the sidebar stops being an overlay
+  const isMobileViewport = () => !window.matchMedia('(min-width: 768px)').matches;
+
   const switchWorkspace = (id: string) => {
     currentWorkspaceId = id;
     localStorage.setItem(WORKSPACE_KEY, id);
     selectMode = false;
     selectedIds = [];
+    // On mobile the sidebar covers the whole page, so a selection dismisses it;
+    // on desktop it stays open as a persistent column
+    if (isMobileViewport() && sidebarOpen) {
+      sidebarOpen = false;
+      localStorage.setItem(SIDEBAR_KEY, 'false');
+    }
   };
 
   const startCreateWorkspace = () => {
